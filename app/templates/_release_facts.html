@@ -5,7 +5,7 @@
   {% if r.year %}<dt>Year</dt><dd>{{ r.year }}</dd>{% endif %}
   <dt>Release date</dt><dd>{{ r.release_date.strftime('%d %b %Y') if r.release_date else '—' }}
     {% if r.release_date and r.release_date > today() %}<span class="badge review">upcoming</span>{% endif %}</dd>
-  <dt>Barcode</dt><dd>{{ r.upc or '—' }}</dd>
+  <dt>UPC / EAN</dt><dd>{{ r.upc or 'Not listed on blu-ray.com' }}</dd>
   {% if r.studio %}<dt>Studio</dt><dd>{{ r.studio }}</dd>{% endif %}
   {% if r.region %}<dt>Region</dt><dd>{{ r.region }}</dd>{% endif %}
   {% if r.runtime %}<dt>Runtime</dt><dd>{{ r.runtime }}</dd>{% endif %}

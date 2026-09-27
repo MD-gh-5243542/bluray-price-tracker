@@ -266,12 +266,18 @@ def title_editions(request: Request, tid: int):
 
 @app.post("/title/{tid}/update")
 def title_update(tid: int, target_price: str = Form(""), notes: str = Form(""),
-                 search_terms: str = Form("")):
+                 search_terms: str = Form(""), upc: str = Form("")):
+    upc = upc.strip()
+    if upc and (not upc.isdigit() or len(upc) not in (8, 12, 13, 14)):
+        raise HTTPException(400, "UPC/EAN must contain 8, 12, 13 or 14 digits")
     with get_session() as s:
         t = s.get(Title, tid)
+        if not t:
+            raise HTTPException(404)
         t.target_price = float(target_price) if target_price.strip() else None
         t.notes = notes.strip() or None
         t.search_terms = search_terms.strip() or None
+        t.upc = upc or None
         t.last_notified_price = None
         s.add(t)
         s.commit()
