@@ -9,7 +9,7 @@ from urllib.parse import urlencode
 from bs4 import BeautifulSoup
 
 from .. import config, fetch
-from ..matching import parse_price, score, search_query
+from ..matching import parse_price, score, score_barcode, search_query
 from .base import Offer, Query
 
 log = logging.getLogger(__name__)
@@ -101,18 +101,16 @@ def _api(query: str | None, gtin: str | None) -> list[Offer]:
 
 def search(q: Query) -> list[Offer]:
     use_api = bool(config.EBAY_CLIENT_ID and config.EBAY_CLIENT_SECRET)
-    results: list[Offer] = []
     if q.upc:
         results = _api(None, q.upc) if use_api else _scrape(q.upc)
         for o in results:
             o.by_barcode = True
-    text = q.search_terms or (search_query(q.name) + (" 4k" if q.is_4k else " blu-ray"))
-    if len([o for o in results if o.price]) < 3:
-        more = _api(text, None) if use_api else _scrape(text)
-        known = {o.url for o in results}
-        results += [o for o in more if o.url not in known]
+    else:
+        text = q.search_terms or (search_query(q.name) + (" 4k" if q.is_4k else " blu-ray"))
+        results = _api(text, None) if use_api else _scrape(text)
     for o in results:
-        o.score = score(q.name, q.is_4k, q.edition, o.title, loose=True)
+        o.score = (score_barcode(q.name, q.is_4k, q.edition, o.title, loose=True)
+                   if o.by_barcode else score(q.name, q.is_4k, q.edition, o.title, loose=True))
         if o.by_barcode and o.score >= 55:
             o.score = max(o.score, 85.0)
     return results

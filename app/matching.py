@@ -111,6 +111,15 @@ def score(wanted_name: str, wanted_4k: bool, wanted_edition: str, candidate: str
     return max(0.0, min(100.0, s))
 
 
+def score_barcode(wanted_name: str, wanted_4k: bool, wanted_edition: str, candidate: str,
+                  loose: bool = False) -> float:
+    """Score title identity for a barcode hit; the barcode establishes the format."""
+    title = re.sub(
+        r"\b(?:4k|uhd|2160p|dvd|blu[\s-]?ray|ultra[\s-]?hd)\b", " ", candidate, flags=re.I)
+    title += " 4K Ultra HD" if wanted_4k else " Blu-ray"
+    return score(wanted_name, wanted_4k, wanted_edition, title, loose=loose)
+
+
 def parse_price(text: str) -> float | None:
     if not text:
         return None

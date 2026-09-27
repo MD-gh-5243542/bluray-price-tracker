@@ -4,7 +4,7 @@ from urllib.parse import urljoin
 from bs4 import BeautifulSoup
 
 from .. import fetch
-from ..matching import is_4k, parse_price, score, search_query
+from ..matching import is_4k, parse_price, score, score_barcode, search_query
 from .base import Offer, Query
 
 BASE = "https://www.amazon.com.au"
@@ -103,7 +103,8 @@ def search(q: Query) -> list[Offer]:
         text = q.search_terms or search_query(q.name) + (" 4K" if q.is_4k else " blu-ray")
         results = _search(text)[:12]
     for o in results:
-        o.score = score(q.name, q.is_4k, q.edition, o.title, loose=o.by_barcode)
+        o.score = (score_barcode(q.name, q.is_4k, q.edition, o.title, loose=True)
+                   if o.by_barcode else score(q.name, q.is_4k, q.edition, o.title))
         if o.by_barcode:
             o.score = max(o.score, 90.0) if o.score >= 50 else o.score
     return results

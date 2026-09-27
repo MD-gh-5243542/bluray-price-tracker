@@ -17,6 +17,7 @@ A self-hosted wishlist for 4K Ultra HD Blu-rays. It tracks the cheapest **delive
 - **Add titles** by searching blu-ray.com or pasting a 4K blu-ray.com URL. Pick the exact edition you want (e.g. the JB Hi-Fi SteelBook vs the standard release).
 - Prices are checked automatically every 12 h (configurable), and you can check manually: every title, only the titles you tick on the wishlist (“Check selected”), or one title (“Check now”).
 - Per-store controls: “Wrong match” (exclude and re-search), pick another result, or pin an exact product URL.
+- Amazon and eBay searches use the blu-ray.com UPC when available; eBay does not broaden a UPC search into a same-title search. Amazon verifies the 4K variant on the product page before saving its price.
 - Price-history chart, lowest-ever price and target price.
 - **Alerts** via [Apprise](https://github.com/caronc/apprise/wiki) (ntfy, Discord, Telegram, email, Teams, Pushover…) when a title hits your target or a new low.
 - CSV export.
