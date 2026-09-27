@@ -29,7 +29,7 @@
   {{ titles|length }} title{{ '' if titles|length == 1 else 's' }}
   {% if review_count %}· <strong class="warn">{{ review_count }} need{{ 's' if review_count == 1 else '' }} a release check</strong>{% endif %}
   {% if next_run %}· next automatic check {{ next_run.strftime('%a %d %b %H:%M') }}{% endif %}
-  · prices include estimated delivery
+  · store prices show item (+ postage); Best includes delivery
 </p>
 
 {% if not titles %}
@@ -50,6 +50,7 @@
   {% for t in titles %}
     {% set ls = listings.get(t.id, {}) %}
     {% set tot = totals.get(t.id, {}) %}
+    {% set pst = postage.get(t.id, {}) %}
     <tr class="{% if t.target_price and t.best_price and t.best_price <= t.target_price %}hit{% endif %}">
       <td class="sel"><input type="checkbox" name="ids" value="{{ t.id }}" form="checksel" class="sel-row" aria-label="Select {{ t.name }}"></td>
       <td class="cover">{% if t.cover_url %}<img src="{{ t.cover_url|replace('_large','_medium') }}" alt="" loading="lazy">{% endif %}</td>
@@ -68,7 +69,7 @@
           {% if l and l.status in ('ok','review') and tot.get(st) is not none %}
             <a href="{{ l.url }}" target="_blank" rel="noopener"
                class="{% if st == t.best_store %}best{% endif %} {% if l.status=='review' %}uncertain{% endif %} {% if not l.in_stock %}oos{% endif %}"
-               title="{{ l.product_title }}{% if l.status=='review' %} (unconfirmed match){% endif %}{% if not l.in_stock %} — out of stock{% endif %}">{{ tot.get(st)|money }}</a>
+               title="{{ l.product_title }}{% if l.status=='review' %} (unconfirmed match){% endif %}{% if not l.in_stock %} — out of stock{% endif %}">{{ l.price|money }} (+{{ pst.get(st)|money }})</a>
           {% elif l and l.status == 'error' %}<span class="muted" title="{{ l.error }}">error</span>
           {% elif l and l.status == 'not_found' %}<span class="muted">—</span>
           {% else %}<span class="muted">…</span>{% endif %}

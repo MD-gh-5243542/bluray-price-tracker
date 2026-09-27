@@ -85,8 +85,10 @@ def index(request: Request, sort: str = "name", show: str = "wanted", q: str = "
     }
     titles.sort(key=keys.get(sort, keys["name"]), reverse=sort in ("release", "added"))
     totals = {tid: {st: total_for(l) for st, l in d.items()} for tid, d in listings.items()}
+    postage = {tid: {st: shipping_for(st, l.price, l.shipping) for st, l in d.items()}
+               for tid, d in listings.items()}
     review_count = sum(1 for t in titles if t.needs_review)
-    return render(request, "index.html", titles=titles, listings=listings, totals=totals,
+    return render(request, "index.html", titles=titles, listings=listings, totals=totals, postage=postage,
                   sort=sort, show=show, q=q, review_count=review_count, next_run=jobs.next_run())
 
 
@@ -220,8 +222,10 @@ def _history_svg(points: list[PricePoint], width=720, height=220) -> str:
         if len(pts) > 1:
             parts.append(f'<polyline points="{path}" fill="none" stroke="{c}" stroke-width="2"/>')
         for p in pts:
+            postage = max(0, p.total - p.price)
             parts.append(f'<circle cx="{px(p.checked_at.timestamp()):.1f}" cy="{py(p.total):.1f}" r="3" fill="{c}">'
-                         f'<title>{STORE_NAMES[store]} ${p.total:.2f} — {_local(p.checked_at)}</title></circle>')
+                         f'<title>{STORE_NAMES[store]} ${p.price:.2f} (+${postage:.2f}) — '
+                         f'${p.total:.2f} delivered — {_local(p.checked_at)}</title></circle>')
     parts.append("</svg>")
     return "".join(parts)
 
@@ -237,6 +241,9 @@ def title_page(request: Request, tid: int, q: str = ""):
                      .order_by(PricePoint.checked_at)).all()
         excluded = s.exec(select(ExcludedUrl).where(ExcludedUrl.title_id == tid)).all()
     cands = {st: json.loads(l.candidates_json) if l.candidates_json else [] for st, l in ls.items()}
+    for st, offers in cands.items():
+        for offer in offers:
+            offer["postage"] = shipping_for(st, offer.get("price"), offer.get("shipping"))
     ship = {st: shipping_for(st, l.price, l.shipping) for st, l in ls.items()}
     totals = {st: total_for(l) for st, l in ls.items()}
     search_results, editions = [], []
