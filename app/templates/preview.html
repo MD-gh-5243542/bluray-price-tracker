@@ -16,6 +16,7 @@
       <form method="post" action="/add" class="inline">
         <input type="hidden" name="url" value="{{ rel.url }}">
         <label>Target price (optional) <input type="number" step="0.01" min="0" name="target_price" placeholder="e.g. 29.99"></label>
+        <label class="check"><input type="checkbox" name="check_now" value="1"> Check prices now</label>
         <button class="btn primary">Add to wishlist</button>
         <a class="btn" href="javascript:history.back()">Back</a>
       </form>

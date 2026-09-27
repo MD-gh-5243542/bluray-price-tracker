@@ -66,11 +66,14 @@ def check_store(session, title: Title, store: str) -> Listing:
     excluded = {e.url for e in session.exec(
         select(ExcludedUrl).where(ExcludedUrl.title_id == title.id, ExcludedUrl.store == store))}
     q = Query(title)
-    offer: Offer | None = None
     listing.error = None
+    pinned_url = listing.url if listing.pinned and store != "ebay" else None
+    # Release the write lock before slow network scraping so the UI stays usable.
+    session.commit()
+    offer: Offer | None = None
     try:
-        if listing.pinned and listing.url and store != "ebay":
-            offer = mod.refresh(listing.url)
+        if pinned_url:
+            offer = mod.refresh(pinned_url)
             if offer:
                 offer.score = score(title.name, True, title.edition or "", offer.title)
                 if offer.score < REVIEW:

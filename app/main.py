@@ -151,7 +151,7 @@ def add_preview(request: Request, url: str, title_id: int | None = None):
 
 
 @app.post("/add")
-def add_title(url: str = Form(...), target_price: str = Form("")):
+def add_title(url: str = Form(...), target_price: str = Form(""), check_now: str = Form("")):
     rel = bluray.details(url)
     if not rel.is_4k:
         raise HTTPException(400, "Only 4K releases can be added to this wishlist")
@@ -166,7 +166,8 @@ def add_title(url: str = Form(...), target_price: str = Form("")):
         s.commit()
         s.refresh(t)
         tid = t.id
-    jobs.queue_check_title(tid)
+    if check_now:
+        jobs.queue_check_title(tid)
     return back(f"/title/{tid}")
 
 

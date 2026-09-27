@@ -1,6 +1,7 @@
 from datetime import date, datetime
 from typing import Optional
 
+from sqlalchemy import event
 from sqlmodel import Field, Session, SQLModel, create_engine, select
 
 from .config import DB_PATH
@@ -102,8 +103,17 @@ class Setting(SQLModel, table=True):
 
 
 engine = create_engine(
-    f"sqlite:///{DB_PATH}", connect_args={"check_same_thread": False}
+    f"sqlite:///{DB_PATH}", connect_args={"check_same_thread": False, "timeout": 30}
 )
+
+
+@event.listens_for(engine, "connect")
+def _sqlite_pragmas(dbapi_conn, _):
+    # WAL lets the web UI read/write while the background checker is working.
+    cur = dbapi_conn.cursor()
+    cur.execute("PRAGMA journal_mode=WAL")
+    cur.execute("PRAGMA busy_timeout=30000")
+    cur.close()
 
 
 def init_db() -> None:
