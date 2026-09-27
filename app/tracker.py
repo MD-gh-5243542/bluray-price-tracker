@@ -56,6 +56,20 @@ def _cands_json(cands: list[Offer]) -> str:
     ])
 
 
+def _discard_amazon_parent_prices(session, title: Title, url: str) -> None:
+    stale = session.exec(select(PricePoint).where(
+        PricePoint.title_id == title.id, PricePoint.store == "amazon", PricePoint.url == url
+    )).all()
+    if not stale:
+        return
+    for point in stale:
+        session.delete(point)
+    remaining = session.exec(select(PricePoint).where(
+        PricePoint.title_id == title.id, PricePoint.in_stock == True  # noqa: E712
+    )).all()
+    title.lowest_ever = min((point.total for point in remaining), default=None)
+
+
 def check_store(session, title: Title, store: str) -> Listing:
     mod = MODULES[store]
     listing = session.exec(
@@ -75,6 +89,8 @@ def check_store(session, title: Title, store: str) -> Listing:
         if pinned_url:
             offer = mod.refresh(pinned_url)
             if offer:
+                if store == "amazon" and offer.url != pinned_url:
+                    _discard_amazon_parent_prices(session, title, pinned_url)
                 offer.score = score(title.name, True, title.edition or "", offer.title)
                 if offer.score < REVIEW:
                     offer = None
@@ -88,6 +104,8 @@ def check_store(session, title: Title, store: str) -> Listing:
                 if wl_url not in excluded and all(o.url != wl_url for o in offers):
                     wl = mod.refresh(wl_url)
                     if wl:
+                        if wl.url != wl_url:
+                            _discard_amazon_parent_prices(session, title, wl_url)
                         wl.score = max(score(title.name, title.is_4k, title.edition or "", wl.title, loose=True), 0)
                         # It was on the user's own wishlist, so trust it if the format matches.
                         if wl.score >= 50:
@@ -95,7 +113,18 @@ def check_store(session, title: Title, store: str) -> Listing:
                         offers.append(wl)
             offer, cands = _choose(store, offers)
             listing.candidates_json = _cands_json(cands)
-            if offer and offer.price is None and store != "ebay":
+            if offer and store == "amazon":
+                source_url = offer.url
+                refreshed = mod.refresh(source_url)
+                if refreshed:
+                    if refreshed.url != source_url:
+                        _discard_amazon_parent_prices(session, title, source_url)
+                    refreshed.score = score(title.name, title.is_4k, title.edition or "",
+                                             refreshed.title, loose=offer.by_barcode)
+                    offer = refreshed if refreshed.score >= REVIEW else None
+                else:
+                    offer = None
+            elif offer and offer.price is None and store != "ebay":
                 refreshed = mod.refresh(offer.url)
                 if refreshed:
                     refreshed.score = offer.score

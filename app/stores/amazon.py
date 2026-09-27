@@ -4,7 +4,7 @@ from urllib.parse import urljoin
 from bs4 import BeautifulSoup
 
 from .. import fetch
-from ..matching import parse_price, score, search_query
+from ..matching import is_4k, parse_price, score, search_query
 from .base import Offer, Query
 
 BASE = "https://www.amazon.com.au"
@@ -20,6 +20,16 @@ def product_url(asin: str) -> str:
     return f"{BASE}/dp/{asin}"
 
 
+def _primary_price(soup: BeautifulSoup) -> float | None:
+    for sel in ("#corePrice_feature_div .a-offscreen",
+                "#corePriceDisplay_desktop_feature_div .a-offscreen",
+                "#apex_desktop .a-offscreen", "#price_inside_buybox", "#newBuyBoxPrice"):
+        e = soup.select_one(sel)
+        if e and (price := parse_price(e.get_text())) is not None:
+            return price
+    return None
+
+
 def refresh(url: str) -> Offer | None:
     asin = _asin(url)
     if not asin:
@@ -29,19 +39,34 @@ def refresh(url: str) -> Offer | None:
     t = s.select_one("#productTitle")
     if not t:
         return None
-    price = None
-    for sel in ("#corePrice_feature_div .a-offscreen", "#corePriceDisplay_desktop_feature_div .a-offscreen",
-                "#apex_desktop .a-offscreen", "#price_inside_buybox", "#newBuyBoxPrice",
-                "span.a-price .a-offscreen"):
-        e = s.select_one(sel)
-        if e and parse_price(e.get_text()):
-            price = parse_price(e.get_text())
-            break
+    title = t.get_text(strip=True)
+    price = _primary_price(s)
+    offer_url = product_url(asin)
+    formats = s.select_one("#formats")
+    if formats:
+        variant = next((li for li in formats.select("#tmmSwatches li.swatchElement")
+                        if is_4k(li.get_text(" ", strip=True))), None)
+        if not variant:
+            return None
+        if not is_4k(title):
+            title += " [4K UHD]"
+        price_node = variant.select_one('[aria-label*="$"], .a-color-secondary')
+        price_text = price_node.get_text(" ", strip=True) if price_node else ""
+        variant_price = parse_price(price_text) if "$" in price_text else None
+        link = variant.select_one("a[href]")
+        variant_asin = _asin(urljoin(BASE, link["href"])) if link else None
+        if variant_asin:
+            offer_url = product_url(variant_asin)
+        # A swatch price is tied to its format; a page-level price is only safe
+        # when the 4K swatch itself is selected.
+        selected = "selected" in (variant.get("class") or [])
+        price = variant_price if variant_price is not None else (_primary_price(s) if selected else None)
     avail = (s.select_one("#availability").get_text(" ", strip=True).lower()
              if s.select_one("#availability") else "")
-    in_stock = price is not None and "unavailable" not in avail and "out of stock" not in avail
+    in_stock = price is not None and (formats is not None or
+                                      ("unavailable" not in avail and "out of stock" not in avail))
     img = s.select_one("#landingImage")
-    return Offer(STORE, product_url(asin), t.get_text(strip=True), price,
+    return Offer(STORE, offer_url, title, price,
                  in_stock=in_stock, image=img.get("src") if img else None)
 
 
