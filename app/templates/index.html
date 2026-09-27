@@ -18,6 +18,9 @@
   </form>
   <div class="actions">
     <a class="btn" href="/export.csv">Export CSV</a>
+    <form method="post" action="/check-selected" id="checksel">
+      <button class="btn" id="checksel-btn" disabled>Check selected</button>
+    </form>
     <form method="post" action="/check-all"><button class="btn primary">Check all prices</button></form>
   </div>
 </div>
@@ -38,7 +41,7 @@
 <table class="wishlist">
   <thead>
     <tr>
-      <th></th><th>Title</th>
+      <th class="sel"><input type="checkbox" id="sel-all" title="Select all" aria-label="Select all"></th><th></th><th>Title</th>
       {% for st in stores %}<th class="num">{{ STORE_NAMES[st] }}</th>{% endfor %}
       <th class="num">Best</th><th class="num">Target</th><th class="num">Lowest</th>
     </tr>
@@ -48,6 +51,7 @@
     {% set ls = listings.get(t.id, {}) %}
     {% set tot = totals.get(t.id, {}) %}
     <tr class="{% if t.target_price and t.best_price and t.best_price <= t.target_price %}hit{% endif %}">
+      <td class="sel"><input type="checkbox" name="ids" value="{{ t.id }}" form="checksel" class="sel-row" aria-label="Select {{ t.name }}"></td>
       <td class="cover">{% if t.cover_url %}<img src="{{ t.cover_url|replace('_large','_medium') }}" alt="" loading="lazy">{% endif %}</td>
       <td class="name">
         <a href="/title/{{ t.id }}">{{ t.name }}</a>
@@ -77,6 +81,23 @@
   {% endfor %}
   </tbody>
 </table>
+<script>
+(() => {
+  const all = document.getElementById('sel-all');
+  const rows = [...document.querySelectorAll('.sel-row')];
+  const btn = document.getElementById('checksel-btn');
+  const sync = () => {
+    const n = rows.filter(r => r.checked).length;
+    btn.disabled = n === 0;
+    btn.textContent = n ? `Check selected (${n})` : 'Check selected';
+    all.checked = n > 0 && n === rows.length;
+    all.indeterminate = n > 0 && n < rows.length;
+  };
+  all.addEventListener('change', () => { rows.forEach(r => r.checked = all.checked); sync(); });
+  rows.forEach(r => r.addEventListener('change', sync));
+  sync();
+})();
+</script>
 <p class="legend muted small"><span class="best">green</span> = cheapest · <span class="uncertain">dotted</span> = unconfirmed match · <span class="oos">struck</span> = out of stock</p>
 {% endif %}
 {% endblock %}

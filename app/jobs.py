@@ -52,6 +52,10 @@ def queue_check_title(title_id: int, stores: list[str] | None = None):
     submit("Checking prices", tracker.check_title, title_id, stores)
 
 
+def queue_check_titles(ids: list[int]):
+    submit(f"Checking {len(ids)} selected title{'s' if len(ids) != 1 else ''}", tracker.check_titles, ids)
+
+
 def queue_import(url: str):
     def job(url, progress):
         result = importer.import_wishlist(url, progress=progress)

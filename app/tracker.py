@@ -200,3 +200,8 @@ def check_all(progress=None) -> None:
             Title.purchased == False, Title.is_4k == True))]  # noqa: E712
     for i, tid in enumerate(ids, 1):
         check_title(tid, progress=(lambda msg, i=i: progress(f"[{i}/{len(ids)}] {msg}")) if progress else None)
+
+
+def check_titles(ids: list[int], progress=None) -> None:
+    for i, tid in enumerate(ids, 1):
+        check_title(tid, progress=(lambda msg, i=i: progress(f"[{i}/{len(ids)}] {msg}")) if progress else None)

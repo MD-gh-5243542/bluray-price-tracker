@@ -101,6 +101,15 @@ def check_all():
     return back("/")
 
 
+@app.post("/check-selected")
+def check_selected(ids: list[int] = Form([])):
+    with get_session() as s:
+        valid = [t.id for t in s.exec(select(Title).where(Title.id.in_(ids), Title.is_4k == True))] if ids else []  # noqa: E712
+    if valid:
+        jobs.queue_check_titles(valid)
+    return back("/")
+
+
 @app.get("/export.csv")
 def export_csv():
     buf = io.StringIO()

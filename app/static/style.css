@@ -71,6 +71,8 @@ th { color: var(--muted); font-weight: 500; font-size: .85em; background: var(--
 td.num, th.num { text-align: right; white-space: nowrap; }
 tr:last-child td { border-bottom: 0; }
 tr.hit { background: #2fbf710f; }
+.wishlist .sel { width: 28px; padding-right: 0; }
+.wishlist .sel input { width: 16px; height: 16px; cursor: pointer; }
 .wishlist td.cover { width: 44px; padding-right: 0; }
 .wishlist td.cover img { width: 40px; height: 50px; object-fit: cover; border-radius: 3px; display: block; }
 .wishlist td.name a { color: var(--text); font-weight: 600; }
@@ -128,5 +130,5 @@ svg.chart .grid { stroke: var(--line); stroke-width: 1; }
   .cover-lg { width: 140px; }
   header.top { flex-wrap: wrap; gap: .6rem; }
   .jobstatus { max-width: 100%; margin-left: 0; }
-  .wishlist th:nth-child(n+3):not(:nth-last-child(-n+3)), .wishlist td:nth-child(n+3):not(:nth-last-child(-n+3)) { display: none; }
+  .wishlist th:nth-child(n+4):not(:nth-last-child(-n+3)), .wishlist td:nth-child(n+4):not(:nth-last-child(-n+3)) { display: none; }
 }
