@@ -10,6 +10,7 @@ import time
 from urllib.parse import urlparse
 
 import httpx
+from playwright.sync_api import Error as PlaywrightError
 
 from . import config
 
@@ -132,13 +133,16 @@ class _PageHandle:
 
 
 def browser_page(url: str, wait_selector: str | None = None, scroll: bool = False,
-                 timeout_ms: int = 30000):
+                 timeout_ms: int = 30000, block_resources: set[str] | None = None):
     """Open url in the shared browser context and return (handle, page).
 
     The first visit to each site loads its home page to pick up cookies, which
     avoids bot-protection error pages (notably on eBay)."""
     ctx = _context()
     page = ctx.new_page()
+    if block_resources:
+        page.route("**/*", lambda route: route.abort()
+                   if route.request.resource_type in block_resources else route.continue_())
     parsed = urlparse(url)
     host = parsed.netloc
     if host not in _tl.warmed:
@@ -167,12 +171,20 @@ def browser_page(url: str, wait_selector: str | None = None, scroll: bool = Fals
     return _PageHandle(page), page
 
 
-def browser_get(url: str, wait_selector: str | None = None, scroll: bool = False) -> str:
-    ctx, page = browser_page(url, wait_selector, scroll)
-    try:
-        return page.content()
-    finally:
-        ctx.close()
+def browser_get(url: str, wait_selector: str | None = None, scroll: bool = False,
+                block_resources: set[str] | None = None) -> str:
+    for attempt in range(2):
+        handle, page = browser_page(url, wait_selector, scroll, block_resources=block_resources)
+        try:
+            return page.content()
+        except PlaywrightError as e:
+            if attempt or "Target crashed" not in str(e):
+                raise
+            log.warning("Browser page crashed while reading %s; restarting browser and retrying", urlparse(url).netloc)
+            shutdown_browser()
+        finally:
+            handle.close()
+    raise RuntimeError("Browser page crashed twice while reading content")
 
 
 def smart_get(url: str, params: dict | None = None, wait_selector: str | None = None) -> str:

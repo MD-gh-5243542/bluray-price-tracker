@@ -30,11 +30,12 @@ def _shipping_from_rows(rows: list[str]) -> float | None:
 
 
 def _scrape(query: str) -> list[Offer]:
-    params = {"_nkw": query, "LH_BIN": "1", "_sop": "15", "_ipg": "60", "LH_PrefLoc": "1"}
+    params = {"_nkw": query, "LH_BIN": "1", "_sop": "15", "_ipg": "25", "LH_PrefLoc": "1"}
     if not config.EBAY_INCLUDE_USED:
         params["LH_ItemCondition"] = "1000"
     url = "https://www.ebay.com.au/sch/i.html?" + urlencode(params)
-    html = fetch.browser_get(url, wait_selector="li.s-card, li.s-item")
+    html = fetch.browser_get(url, wait_selector="li.s-card, li.s-item",
+                             block_resources={"image", "media", "font"})
     s = BeautifulSoup(html, "lxml")
     out = []
     for card in s.select("li.s-card, li.s-item"):
