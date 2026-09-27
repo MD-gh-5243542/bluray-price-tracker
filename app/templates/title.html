@@ -1,0 +1,152 @@
+{% extends "base.html" %}
+{% block title %}{{ t.name }}{% endblock %}
+{% block content %}
+<div class="detail">
+  {% if t.cover_url %}<img class="cover-lg" src="{{ t.cover_url }}" alt="">{% endif %}
+  <div class="grow">
+    <h1>{{ t.name }} <span class="badge {{ 'uhd' if t.is_4k else 'bd' }}">{{ '4K' if t.is_4k else 'Blu-ray' }}</span>
+      {% if t.purchased %}<span class="badge ok">purchased</span>{% endif %}</h1>
+
+    {% if t.needs_review %}
+    <div class="alert warn">
+      <strong>Is this the right release?</strong>
+      {% if t.source_title %}It was matched automatically from Amazon's “{{ t.source_title }}”.{% endif %}
+      Confirm it, or pick a different edition below.
+      <form method="post" action="/title/{{ t.id }}/confirm" class="inline"><button class="btn primary small">Yes, this is right</button></form>
+    </div>
+    {% endif %}
+
+    {% include "_release_facts.html" %}
+
+    <div class="bestbox">
+      {% if t.best_price %}
+        Cheapest now: <a href="{{ t.best_url }}" target="_blank" rel="noopener"><strong>{{ t.best_price|money }}</strong> at {{ STORE_NAMES[t.best_store] }}</a>
+      {% else %}No confirmed prices yet.{% endif %}
+      {% if t.lowest_ever %}<span class="muted">· lowest seen {{ t.lowest_ever|money }}</span>{% endif %}
+      <span class="muted">· checked {{ t.last_checked|local }}</span>
+      <form method="post" action="/title/{{ t.id }}/check" class="inline"><button class="btn small">Check now</button></form>
+    </div>
+  </div>
+</div>
+
+<h2>Prices</h2>
+<table class="stores">
+  <thead><tr><th>Store</th><th>Matched product</th><th class="num">Price</th><th class="num">Delivery</th><th class="num">Total</th><th>Match</th><th></th></tr></thead>
+  <tbody>
+  {% for st in stores %}
+    {% set l = listings.get(st) %}
+    <tr class="{% if st == t.best_store %}hit{% endif %}">
+      <td><strong>{{ STORE_NAMES[st] }}</strong></td>
+      <td>
+        {% if l and l.url and l.status in ('ok','review','error') %}
+          <a href="{{ l.url }}" target="_blank" rel="noopener">{{ l.product_title or l.url }}</a>
+          {% if l.in_stock == false %}<span class="badge oos">out of stock</span>{% endif %}
+          {% if l.pinned %}<span class="badge ok" title="You chose this product; it won't be auto-replaced">pinned</span>{% endif %}
+        {% elif l and l.status == 'not_found' %}<span class="muted">No matching product found</span>
+        {% elif l and l.status == 'error' %}<span class="error">{{ l.error }}</span>
+        {% else %}<span class="muted">Not checked yet</span>{% endif %}
+        {% if l and l.error and l.status == 'error' and l.url %}<div class="error small">{{ l.error }}</div>{% endif %}
+      </td>
+      <td class="num">{{ l.price|money if l else '—' }}</td>
+      <td class="num">{% if l and l.price is not none %}{{ 'free' if ship[st] == 0 else ship[st]|money }}{% if l.shipping is none and st != 'ebay' %}<span class="muted" title="Estimated — set in Settings">*</span>{% endif %}{% endif %}</td>
+      <td class="num"><strong>{{ totals[st]|money if l else '—' }}</strong></td>
+      <td>
+        {% if l and l.status == 'ok' %}<span class="badge ok">{{ 'pinned' if l.pinned else 'matched' }}</span>
+        {% elif l and l.status == 'review' %}<span class="badge review" title="Score {{ l.match_score|round|int }}">unsure</span>{% endif %}
+      </td>
+      <td class="row-actions">
+        {% if l and l.status == 'review' %}
+          <form method="post" action="/title/{{ t.id }}/listing/{{ st }}/accept"><button class="btn small primary">Correct</button></form>
+        {% endif %}
+        {% if l and l.url %}
+          <form method="post" action="/title/{{ t.id }}/listing/{{ st }}/reject"><button class="btn small" title="Exclude this product and search again">Wrong match</button></form>
+        {% endif %}
+        {% if l and l.pinned %}
+          <form method="post" action="/title/{{ t.id }}/listing/{{ st }}/unpin"><button class="btn small">Unpin</button></form>
+        {% endif %}
+        <details class="pick">
+          <summary class="btn small">Change…</summary>
+          <div class="pick-body">
+            {% if cands.get(st) %}
+              <p class="small muted">Other results from the last search:</p>
+              <ul class="cands">
+              {% for c in cands[st] %}
+                <li>
+                  <form method="post" action="/title/{{ t.id }}/listing/{{ st }}/pin">
+                    <input type="hidden" name="url" value="{{ c.url }}">
+                    <button class="linkish">{{ c.title }}</button>
+                    <span class="muted small">{{ c.price|money }} · score {{ c.score|int }}{% if not c.in_stock %} · OOS{% endif %}</span>
+                    <a class="small" href="{{ c.url }}" target="_blank" rel="noopener">↗</a>
+                  </form>
+                </li>
+              {% endfor %}
+              </ul>
+            {% endif %}
+            {% if st != 'ebay' %}
+            <form method="post" action="/title/{{ t.id }}/listing/{{ st }}/pin" class="inline">
+              <input type="url" name="url" placeholder="Paste the exact {{ STORE_NAMES[st] }} product URL" required>
+              <button class="btn small primary">Pin</button>
+            </form>
+            {% else %}<p class="small muted">eBay is re-searched on every check. Use “Wrong match” to exclude a listing, or set custom search terms below.</p>{% endif %}
+          </div>
+        </details>
+      </td>
+    </tr>
+  {% endfor %}
+  </tbody>
+</table>
+<p class="muted small">* Estimated delivery cost from Settings. Only confirmed, in-stock matches count toward the cheapest price.</p>
+
+{% if chart %}<h2>Price history</h2>
+<div class="chart-wrap">{{ chart|safe }}</div>
+<p class="legend small"><span style="color:#ff9900">■</span> Amazon <span style="color:#e4002b">■</span> EzyDVD <span style="color:#8a5cf6">■</span> Zavvi <span style="color:#0064d2">■</span> eBay <span style="color:#e31837">■</span> JB Hi-Fi</p>
+{% endif %}
+
+<div class="two-col">
+  <section>
+    <h2>Tracking options</h2>
+    <form method="post" action="/title/{{ t.id }}/update" class="stack">
+      <label>Target price (alert when at or below)
+        <input type="number" step="0.01" min="0" name="target_price" value="{{ t.target_price or '' }}"></label>
+      <label>Custom store search terms <span class="muted small">(optional, used if store matches are poor)</span>
+        <input type="text" name="search_terms" value="{{ t.search_terms or '' }}" placeholder="e.g. heat directors definitive"></label>
+      <label>Notes <textarea name="notes" rows="2">{{ t.notes or '' }}</textarea></label>
+      <button class="btn primary">Save</button>
+    </form>
+    <div class="row gap">
+      <form method="post" action="/title/{{ t.id }}/purchased"><input type="hidden" name="value" value="{{ '0' if t.purchased else '1' }}">
+        <button class="btn">{{ 'Move back to wishlist' if t.purchased else 'Mark as purchased' }}</button></form>
+      <form method="post" action="/title/{{ t.id }}/delete" onsubmit="return confirm('Remove {{ t.name|e }} from the wishlist?')"><button class="btn danger">Delete</button></form>
+    </div>
+    {% if excluded %}
+    <h3>Excluded products</h3>
+    <ul class="small">
+      {% for e in excluded %}<li>{{ STORE_NAMES[e.store] }}: <a href="{{ e.url }}" target="_blank" rel="noopener">{{ e.url|truncate(60) }}</a>
+        <form method="post" action="/title/{{ t.id }}/excluded/{{ e.id }}/delete" class="inline"><button class="linkish">undo</button></form></li>{% endfor %}
+    </ul>
+    {% endif %}
+  </section>
+  <section>
+    <h2>Change release</h2>
+    <p class="muted small">Pick a different blu-ray.com edition. Store matches will be redone for the new release.</p>
+    <form method="get" class="searchbar">
+      <input type="search" name="q" value="{{ q }}" placeholder="Search blu-ray.com…">
+      <button class="btn">Search</button>
+    </form>
+    {% if search_results %}
+      <div class="grid small">
+      {% for r in search_results %}
+        <a class="card" href="/add/preview?url={{ r.url|urlencode }}&title_id={{ t.id }}">
+          <img src="{{ r.cover }}" alt="" loading="lazy">
+          <div class="card-body"><div>{{ r.title }}</div><span class="badge {{ 'uhd' if r.is_4k else 'bd' }}">{{ '4K' if r.is_4k else 'Blu-ray' }}</span></div>
+        </a>
+      {% endfor %}
+      </div>
+    {% endif %}
+    <details {% if t.needs_review %}open{% endif %}>
+      <summary>Other editions of this film on blu-ray.com</summary>
+      <div data-load="/title/{{ t.id }}/editions"><p class="muted small">Loading…</p></div>
+    </details>
+  </section>
+</div>
+{% endblock %}

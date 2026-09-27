@@ -1,0 +1,33 @@
+services:
+  bluray-tracker:
+    build: .
+    # or, once published:  image: ghcr.io/<you>/bluray-price-tracker:latest
+    container_name: bluray-tracker
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./data:/data
+    shm_size: 1gb          # Chromium needs more than Docker's 64 MB default
+    restart: unless-stopped
+    environment:
+      TZ: Australia/Sydney
+      CHECK_INTERVAL_HOURS: "12"
+      REQUEST_DELAY: "2.5"
+      # Alerts via Apprise — comma separated. Examples:
+      #   ntfy://ntfy.sh/my-secret-bluray-topic
+      #   discord://webhook_id/webhook_token
+      #   tgram://bot_token/chat_id
+      APPRISE_URLS: ""
+      # Used for links in alerts, e.g. http://docker-host:8000
+      BASE_URL: ""
+      # Optional: eBay Browse API keys (more reliable than scraping)
+      EBAY_CLIENT_ID: ""
+      EBAY_CLIENT_SECRET: ""
+      EBAY_INCLUDE_USED: "false"
+      # Delivery estimates (AUD) added to retailer prices
+      SHIPPING_EZYDVD: "6.95"
+      FREE_SHIPPING_OVER_EZYDVD: "80"
+      SHIPPING_ZAVVI: "4.99"
+      SHIPPING_AMAZON: "0"
+      SHIPPING_JBHIFI: "6.95"
+      FREE_SHIPPING_OVER_JBHIFI: "99"

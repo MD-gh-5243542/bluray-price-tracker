@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}Wishlist{% endblock %} · Blu-ray Tracker</title>
+  <link rel="stylesheet" href="/static/style.css">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>💿</text></svg>">
+</head>
+<body>
+  <header class="top">
+    <a href="/" class="brand">💿 Blu-ray Tracker</a>
+    <nav>
+      <a href="/">Wishlist</a>
+      <a href="/add">Add title</a>
+      <a href="/import">Import</a>
+      <a href="/settings">Settings</a>
+    </nav>
+    <div id="jobstatus" class="jobstatus {% if not status.running %}idle{% endif %}">
+      {% if status.running %}<span class="spinner"></span> {{ status.running }} <small>{{ status.detail }}</small>
+      {% elif status.last %}<small>{{ status.last }}</small>{% endif %}
+    </div>
+  </header>
+  <main>
+    {% if status.last_error %}<div class="alert error">Last job failed: {{ status.last_error }}</div>{% endif %}
+    {% block content %}{% endblock %}
+  </main>
+  <script src="/static/app.js"></script>
+</body>
+</html>

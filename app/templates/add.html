@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+{% block title %}Add title{% endblock %}
+{% block content %}
+<h1>Add a title</h1>
+<p class="muted">Search blu-ray.com for 4K Ultra HD releases — it's the source of truth for edition, barcode and release date. You can also paste a 4K blu-ray.com link.</p>
+<form method="get" class="searchbar">
+  <input type="search" name="q" value="{{ q }}" placeholder="e.g. Heat, or https://www.blu-ray.com/movies/…" autofocus required>
+  <select name="country">
+    {% for code, label in countries.items() %}<option value="{{ code }}" {% if code==country %}selected{% endif %}>{{ label }}</option>{% endfor %}
+  </select>
+  <select name="fmt">
+    <option value="4k" selected>4K only</option>
+  </select>
+  <button class="btn primary">Search</button>
+</form>
+{% if error %}<div class="alert error">{{ error }}</div>{% endif %}
+{% if q and not results and not error %}<p class="muted">No results on blu-ray.com.</p>{% endif %}
+<div class="grid">
+  {% for r in results %}
+  <a class="card" href="/add/preview?url={{ r.url|urlencode }}">
+    <img src="{{ r.cover }}" alt="" loading="lazy">
+    <div class="card-body">
+      <div>{{ r.title }}</div>
+      <span class="badge {{ 'uhd' if r.is_4k else 'bd' }}">{{ '4K' if r.is_4k else 'Blu-ray' }}</span>
+      {% if r.bluray_id in have %}<span class="badge ok">on list</span>{% endif %}
+    </div>
+  </a>
+  {% endfor %}
+</div>
+{% endblock %}

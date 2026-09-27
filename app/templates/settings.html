@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+{% block title %}Settings{% endblock %}
+{% block content %}
+<h1>Settings</h1>
+{% if msg %}<div class="alert ok">{{ msg }}</div>{% endif %}
+<form method="post" class="stack narrow">
+  <fieldset>
+    <legend>Stores to track</legend>
+    {% for st in all_stores %}
+      <label class="check"><input type="checkbox" name="store_{{ st }}" {% if st in enabled %}checked{% endif %}> {{ STORE_NAMES[st] }}</label>
+    {% endfor %}
+  </fieldset>
+  <fieldset>
+    <legend>Price alerts</legend>
+    <p class="small muted">Alerts fire when a title hits its target price, or drops to a new lowest price. Uses <a href="https://github.com/caronc/apprise/wiki" target="_blank" rel="noopener">Apprise</a> URLs, one per line — e.g.
+      <code>ntfy://ntfy.sh/my-bluray-topic</code>, <code>discord://webhook_id/webhook_token</code>,
+      <code>tgram://bot_token/chat_id</code>, <code>mailto://user:app-password@gmail.com</code>,
+      <code>workflows://…</code> (Teams).</p>
+    {% if env_apprise %}<p class="small">Plus {{ env_apprise }} target(s) from the <code>APPRISE_URLS</code> environment variable.</p>{% endif %}
+    <textarea name="apprise_urls" rows="3" placeholder="ntfy://ntfy.sh/my-bluray-topic">{{ apprise }}</textarea>
+  </fieldset>
+  <div class="row gap">
+    <button class="btn primary">Save</button>
+  </div>
+</form>
+<form method="post" action="/settings/test-notify" class="inline"><button class="btn">Send test alert</button></form>
+
+<h2>Environment</h2>
+<dl class="facts">
+  <dt>Check interval</dt><dd>every {{ cfg.CHECK_INTERVAL_HOURS|round(1) }} h {% if next_run %}(next {{ next_run.strftime('%a %d %b %H:%M') }}){% endif %}</dd>
+  <dt>Request delay</dt><dd>{{ cfg.REQUEST_DELAY }} s per site</dd>
+  <dt>Headless browser</dt><dd>{{ 'enabled' if cfg.USE_BROWSER else 'disabled (eBay will not work)' }}</dd>
+  <dt>eBay</dt><dd>{{ 'Browse API' if ebay_api else 'browser scraping' }}{{ ', including used' if cfg.EBAY_INCLUDE_USED else ', new only' }}</dd>
+  <dt>Delivery estimates</dt><dd>
+    Amazon {{ cfg.SHIPPING.amazon|money }}{% if cfg.FREE_SHIPPING_OVER.amazon %} (free over {{ cfg.FREE_SHIPPING_OVER.amazon|money }}){% endif %} ·
+    EzyDVD {{ cfg.SHIPPING.ezydvd|money }}{% if cfg.FREE_SHIPPING_OVER.ezydvd %} (free over {{ cfg.FREE_SHIPPING_OVER.ezydvd|money }}){% endif %} ·
+    Zavvi {{ cfg.SHIPPING.zavvi|money }}{% if cfg.FREE_SHIPPING_OVER.zavvi %} (free over {{ cfg.FREE_SHIPPING_OVER.zavvi|money }}){% endif %} ·
+    JB Hi-Fi {{ cfg.SHIPPING.jbhifi|money }}{% if cfg.FREE_SHIPPING_OVER.jbhifi %} (free over {{ cfg.FREE_SHIPPING_OVER.jbhifi|money }}){% endif %} ·
+    eBay uses each listing's postage</dd>
+  <dt>Data directory</dt><dd><code>{{ cfg.DATA_DIR }}</code></dd>
+</dl>
+<p class="small muted">These are set with environment variables in <code>docker-compose.yml</code>.</p>
+{% endblock %}

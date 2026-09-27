@@ -1,0 +1,11 @@
+{% if editions %}
+<div class="grid small">
+  {% for r in editions %}
+  <a class="card" href="/add/preview?url={{ r.url|urlencode }}&title_id={{ t.id }}">
+    <img src="{{ r.cover }}" alt="" loading="lazy">
+    <div class="card-body"><div>{{ r.title }}</div>
+      <span class="badge {{ 'uhd' if r.is_4k else 'bd' }}">{{ '4K' if r.is_4k else 'Blu-ray' }}</span></div>
+  </a>
+  {% endfor %}
+</div>
+{% else %}<p class="muted">No other editions listed.</p>{% endif %}

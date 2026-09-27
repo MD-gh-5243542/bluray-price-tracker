@@ -1,0 +1,82 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="toolbar">
+  <form method="get" class="filters">
+    <input type="search" name="q" value="{{ q }}" placeholder="Filter titles…">
+    <select name="show" onchange="this.form.submit()">
+      <option value="wanted" {% if show=='wanted' %}selected{% endif %}>Wanted</option>
+      <option value="purchased" {% if show=='purchased' %}selected{% endif %}>Purchased</option>
+      <option value="all" {% if show=='all' %}selected{% endif %}>All</option>
+    </select>
+    <select name="sort" onchange="this.form.submit()">
+      <option value="name" {% if sort=='name' %}selected{% endif %}>Sort: Title</option>
+      <option value="price" {% if sort=='price' %}selected{% endif %}>Sort: Cheapest</option>
+      <option value="saving" {% if sort=='saving' %}selected{% endif %}>Sort: Closest to target</option>
+      <option value="release" {% if sort=='release' %}selected{% endif %}>Sort: Release date</option>
+      <option value="added" {% if sort=='added' %}selected{% endif %}>Sort: Recently added</option>
+    </select>
+  </form>
+  <div class="actions">
+    <a class="btn" href="/export.csv">Export CSV</a>
+    <form method="post" action="/check-all"><button class="btn primary">Check all prices</button></form>
+  </div>
+</div>
+
+<p class="muted small">
+  {{ titles|length }} title{{ '' if titles|length == 1 else 's' }}
+  {% if review_count %}· <strong class="warn">{{ review_count }} need{{ 's' if review_count == 1 else '' }} a release check</strong>{% endif %}
+  {% if next_run %}· next automatic check {{ next_run.strftime('%a %d %b %H:%M') }}{% endif %}
+  · prices include estimated delivery
+</p>
+
+{% if not titles %}
+<div class="empty">
+  <p>Your wishlist is empty.</p>
+  <p><a class="btn primary" href="/import">Import your Amazon wishlist</a> or <a class="btn" href="/add">add a title</a></p>
+</div>
+{% else %}
+<table class="wishlist">
+  <thead>
+    <tr>
+      <th></th><th>Title</th>
+      {% for st in stores %}<th class="num">{{ STORE_NAMES[st] }}</th>{% endfor %}
+      <th class="num">Best</th><th class="num">Target</th><th class="num">Lowest</th>
+    </tr>
+  </thead>
+  <tbody>
+  {% for t in titles %}
+    {% set ls = listings.get(t.id, {}) %}
+    {% set tot = totals.get(t.id, {}) %}
+    <tr class="{% if t.target_price and t.best_price and t.best_price <= t.target_price %}hit{% endif %}">
+      <td class="cover">{% if t.cover_url %}<img src="{{ t.cover_url|replace('_large','_medium') }}" alt="" loading="lazy">{% endif %}</td>
+      <td class="name">
+        <a href="/title/{{ t.id }}">{{ t.name }}</a>
+        <span class="badge {{ 'uhd' if t.is_4k else 'bd' }}">{{ '4K' if t.is_4k else 'Blu-ray' }}</span>
+        {% if t.needs_review %}<span class="badge review" title="Confirm this is the right blu-ray.com release">check</span>{% endif %}
+        <div class="sub">
+          {% if t.edition %}{{ t.edition }} · {% endif %}{{ t.country or '' }}
+          {% if t.release_date %}· {% if t.release_date > today() %}<strong>releases {{ t.release_date.strftime('%d %b %Y') }}</strong>{% else %}{{ t.release_date.year }}{% endif %}{% endif %}
+        </div>
+      </td>
+      {% for st in stores %}
+        {% set l = ls.get(st) %}
+        <td class="num store">
+          {% if l and l.status in ('ok','review') and tot.get(st) is not none %}
+            <a href="{{ l.url }}" target="_blank" rel="noopener"
+               class="{% if st == t.best_store %}best{% endif %} {% if l.status=='review' %}uncertain{% endif %} {% if not l.in_stock %}oos{% endif %}"
+               title="{{ l.product_title }}{% if l.status=='review' %} (unconfirmed match){% endif %}{% if not l.in_stock %} — out of stock{% endif %}">{{ tot.get(st)|money }}</a>
+          {% elif l and l.status == 'error' %}<span class="muted" title="{{ l.error }}">error</span>
+          {% elif l and l.status == 'not_found' %}<span class="muted">—</span>
+          {% else %}<span class="muted">…</span>{% endif %}
+        </td>
+      {% endfor %}
+      <td class="num best-col">{% if t.best_price %}<a href="{{ t.best_url }}" target="_blank" rel="noopener">{{ t.best_price|money }}</a>{% else %}—{% endif %}</td>
+      <td class="num">{{ t.target_price|money if t.target_price else '' }}</td>
+      <td class="num muted">{{ t.lowest_ever|money if t.lowest_ever else '' }}</td>
+    </tr>
+  {% endfor %}
+  </tbody>
+</table>
+<p class="legend muted small"><span class="best">green</span> = cheapest · <span class="uncertain">dotted</span> = unconfirmed match · <span class="oos">struck</span> = out of stock</p>
+{% endif %}
+{% endblock %}

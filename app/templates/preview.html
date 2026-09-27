@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+{% block title %}{{ rel.name }}{% endblock %}
+{% block content %}
+<div class="detail">
+  <img class="cover-lg" src="{{ rel.cover_url }}" alt="">
+  <div>
+    <h1>{{ rel.name }} <span class="badge {{ 'uhd' if rel.is_4k else 'bd' }}">{{ '4K' if rel.is_4k else 'Blu-ray' }}</span></h1>
+    {% include "_release_facts.html" %}
+    {% if rel.is_4k and title_id %}
+      <form method="post" action="/title/{{ title_id }}/release" class="inline">
+        <input type="hidden" name="url" value="{{ rel.url }}">
+        <button class="btn primary">Use this release</button>
+        <a class="btn" href="/title/{{ title_id }}">Cancel</a>
+      </form>
+    {% elif rel.is_4k %}
+      <form method="post" action="/add" class="inline">
+        <input type="hidden" name="url" value="{{ rel.url }}">
+        <label>Target price (optional) <input type="number" step="0.01" min="0" name="target_price" placeholder="e.g. 29.99"></label>
+        <button class="btn primary">Add to wishlist</button>
+        <a class="btn" href="javascript:history.back()">Back</a>
+      </form>
+    {% endif %}
+    {% if not rel.is_4k %}<div class="alert warn">This is a standard Blu-ray release. Only 4K Ultra HD releases can be added or tracked.</div>{% endif %}
+  </div>
+</div>
+{% if rel.other_editions %}
+<h2>Other editions</h2>
+<div class="grid">
+  {% for r in rel.other_editions %}
+  <a class="card" href="/add/preview?url={{ r.url|urlencode }}{% if title_id %}&title_id={{ title_id }}{% endif %}">
+    <img src="{{ r.cover }}" alt="" loading="lazy">
+    <div class="card-body"><div>{{ r.title }}</div>
+      <span class="badge {{ 'uhd' if r.is_4k else 'bd' }}">{{ '4K' if r.is_4k else 'Blu-ray' }}</span></div>
+  </a>
+  {% endfor %}
+</div>
+{% endif %}
+{% endblock %}

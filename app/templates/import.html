@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+{% block title %}Import{% endblock %}
+{% block content %}
+<h1>Import Amazon wishlist</h1>
+<p class="muted">Paste the share link of a <strong>public or shared</strong> Amazon AU wishlist. Only 4K Ultra HD items are imported. Each item is matched to a blu-ray.com release (the source of truth). Anything uncertain is flagged <span class="badge review">check</span> for you to confirm. Items already imported are skipped, so you can re-run this any time to pick up new additions.</p>
+<form method="post" class="searchbar">
+  <input type="url" name="url" value="{{ url }}" placeholder="https://www.amazon.com.au/hz/wishlist/ls/…" required>
+  <button class="btn primary" {% if status.running %}disabled{% endif %}>Import</button>
+</form>
+{% if status.running and 'Import' in status.running %}
+  <p><span class="spinner"></span> {{ status.detail }}</p>
+  <p class="muted small">This takes a few minutes: blu-ray.com is queried politely, then all prices are checked.</p>
+{% endif %}
+{% if last %}
+  <div class="alert ok">Last import: found {{ last.found }} item(s), added {{ last.added }}, skipped {{ last.skipped }} already on the list{% if last.skipped_non_4k %}, ignored {{ last.skipped_non_4k }} non-4K item(s){% endif %}. <a href="/?sort=added">View wishlist →</a></div>
+{% endif %}
+{% endblock %}
