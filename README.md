@@ -10,6 +10,8 @@ A self-hosted wishlist for 4K Ultra HD Blu-rays. It tracks the cheapest **delive
 | JB Hi-Fi AU | site search + product JSON-LD |
 | Umbrella Entertainment | Shopify product search + variant data |
 | DVD Hub | Shopify product search + variant data |
+| Sanity | Unbxd product search + JSON-LD product data |
+| Rarewaves | Shopify product search + variant data |
 
 **[blu-ray.com](https://www.blu-ray.com) is the source of truth** for each title: edition, country, barcode, release date and cover art. Only 4K releases are imported, added, and tracked. Store listings are matched against that release using the barcode where possible, then by fuzzy title matching with 4K, SteelBook and box-set guards.
 
@@ -22,6 +24,7 @@ A self-hosted wishlist for 4K Ultra HD Blu-rays. It tracks the cheapest **delive
 - Store prices show item price plus nonzero postage in parentheses; “Best” remains the delivered total. Price-history chart, lowest-ever price and target price.
 - **Alerts** via [Apprise](https://github.com/caronc/apprise/wiki) (ntfy, Discord, Telegram, email, Teams, Pushover…) when a title hits your target or a new low.
 - CSV export.
+- **Bargains** page showing the ten cheapest confirmed in-stock wishlist offers per enabled store.
 
 ## Run with Docker
 ```bash
@@ -48,6 +51,8 @@ Data (SQLite) lives in `./data`, so back that folder up.
 | `SHIPPING_JBHIFI` / `FREE_SHIPPING_OVER_JBHIFI` | `6.95` / `99` | configurable delivery estimate |
 | `SHIPPING_UMBRELLA` / `FREE_SHIPPING_OVER_UMBRELLA` | `9.95` / `120` | `$9.95` is an estimate; postage varies by weight/location; free AU shipping over $120 |
 | `SHIPPING_DVDHUB` / `FREE_SHIPPING_OVER_DVDHUB` | `7.95` / `0` | standard tracked postage |
+| `SHIPPING_SANITY` / `FREE_SHIPPING_OVER_SANITY` | `6.95` / `120` | delivery estimate; free standard shipping over $120 |
+| `SHIPPING_RAREWAVES` / `FREE_SHIPPING_OVER_RAREWAVES` | `9.95` / `0` | estimate; actual international postage varies |
 | `BLURAY_COUNTRY` | `AU` | default country when searching blu-ray.com |
 | `USE_BROWSER` | `true` | headless Chromium (needed for eBay scraping) |
 

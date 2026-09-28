@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+{% block title %}Bargains{% endblock %}
+{% block content %}
+<div class="toolbar">
+  <div>
+    <h1>Bargains</h1>
+    <p class="muted small">The ten cheapest confirmed, in-stock wishlist offers per enabled store. Totals include estimated or listed postage.</p>
+  </div>
+</div>
+
+<div class="two-col">
+{% for st, offers in bargains.items() %}
+  <section>
+    <h2>{{ STORE_NAMES[st] }}</h2>
+    {% if offers %}
+    <table class="stores">
+      <thead><tr><th>#</th><th>Title</th><th class="num">Item (+ postage)</th><th class="num">Delivered</th></tr></thead>
+      <tbody>
+      {% for offer in offers %}
+        <tr>
+          <td class="muted">{{ loop.index }}</td>
+          <td><a href="/title/{{ offer.title.id }}">{{ offer.title.name }}</a></td>
+          <td class="num"><a href="{{ offer.listing.url }}" target="_blank" rel="noopener">{{ offer.listing.price|money }}{% if offer.postage > 0 %} (+{{ offer.postage|money }}){% endif %}</a></td>
+          <td class="num"><strong>{{ offer.total|money }}</strong></td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <div class="empty"><p>No confirmed in-stock offers yet.</p></div>
+    {% endif %}
+  </section>
+{% endfor %}
+</div>
+{% endblock %}

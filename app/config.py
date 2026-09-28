@@ -42,6 +42,8 @@ SHIPPING = {
     "jbhifi": float(os.getenv("SHIPPING_JBHIFI", "6.95")),
     "umbrella": float(os.getenv("SHIPPING_UMBRELLA", "9.95")),
     "dvdhub": float(os.getenv("SHIPPING_DVDHUB", "7.95")),
+    "sanity": float(os.getenv("SHIPPING_SANITY", "6.95")),
+    "rarewaves": float(os.getenv("SHIPPING_RAREWAVES", "9.95")),
 }
 FREE_SHIPPING_OVER = {
     "amazon": float(os.getenv("FREE_SHIPPING_OVER_AMAZON", "0")),
@@ -49,6 +51,8 @@ FREE_SHIPPING_OVER = {
     "jbhifi": float(os.getenv("FREE_SHIPPING_OVER_JBHIFI", "99")),
     "umbrella": float(os.getenv("FREE_SHIPPING_OVER_UMBRELLA", "120")),
     "dvdhub": float(os.getenv("FREE_SHIPPING_OVER_DVDHUB", "0")),
+    "sanity": float(os.getenv("FREE_SHIPPING_OVER_SANITY", "120")),
+    "rarewaves": float(os.getenv("FREE_SHIPPING_OVER_RAREWAVES", "0")),
 }
 
 # Default blu-ray.com country used when searching for new titles.

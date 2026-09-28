@@ -6,7 +6,7 @@ from sqlmodel import Field, Session, SQLModel, create_engine, select
 
 from .config import DB_PATH
 
-STORES = ["amazon", "ezydvd", "ebay", "jbhifi", "umbrella", "dvdhub"]
+STORES = ["amazon", "ezydvd", "ebay", "jbhifi", "umbrella", "dvdhub", "sanity", "rarewaves"]
 STORE_NAMES = {
     "amazon": "Amazon AU",
     "ezydvd": "EzyDVD",
@@ -14,6 +14,8 @@ STORE_NAMES = {
     "jbhifi": "JB Hi-Fi AU",
     "umbrella": "Umbrella Entertainment",
     "dvdhub": "DVD Hub",
+    "sanity": "Sanity",
+    "rarewaves": "Rarewaves",
 }
 
 
@@ -140,6 +142,18 @@ def init_db() -> None:
                     store for store in setting.value.split(",") if store in STORES
                 )
             session.add(Setting(key=remove_zavvi_key, value="1"))
+            session.commit()
+
+        add_new_stores_key = "enabled_stores_sanity_rarewaves_v1"
+        if session.get(Setting, add_new_stores_key) is None:
+            setting = session.get(Setting, "enabled_stores")
+            if setting:
+                enabled = setting.value.split(",")
+                for store in ("sanity", "rarewaves"):
+                    if store not in enabled:
+                        enabled.append(store)
+                setting.value = ",".join(store for store in enabled if store in STORES)
+            session.add(Setting(key=add_new_stores_key, value="1"))
             session.commit()
 
 

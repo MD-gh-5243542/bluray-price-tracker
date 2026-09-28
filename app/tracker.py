@@ -113,7 +113,7 @@ def check_store(session, title: Title, store: str) -> Listing:
                         offers.append(wl)
             offer, cands = _choose(store, offers)
             listing.candidates_json = _cands_json(cands)
-            if offer and store in ("amazon", "umbrella", "dvdhub"):
+            if offer and store in ("amazon", "umbrella", "dvdhub", "sanity", "rarewaves"):
                 source_url = offer.url
                 refreshed = mod.refresh(source_url)
                 if refreshed:

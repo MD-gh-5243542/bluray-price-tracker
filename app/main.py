@@ -92,6 +92,37 @@ def index(request: Request, sort: str = "name", show: str = "wanted", q: str = "
                   sort=sort, show=show, q=q, review_count=review_count, next_run=jobs.next_run())
 
 
+@app.get("/bargains", response_class=HTMLResponse)
+def bargains_page(request: Request):
+    stores = enabled_stores()
+    bargains = {store: [] for store in stores}
+    with get_session() as s:
+        titles = {
+            title.id: title
+            for title in s.exec(select(Title).where(Title.is_4k == True)).all()  # noqa: E712
+        }
+        listings = s.exec(select(Listing)).all()
+    for listing in listings:
+        title = titles.get(listing.title_id)
+        if (
+            title
+            and listing.store in bargains
+            and listing.status == "ok"
+            and listing.in_stock
+            and listing.price is not None
+        ):
+            bargains[listing.store].append({
+                "title": title,
+                "listing": listing,
+                "postage": shipping_for(listing.store, listing.price, listing.shipping),
+                "total": total_for(listing),
+            })
+    for offers in bargains.values():
+        offers.sort(key=lambda offer: offer["total"])
+        del offers[10:]
+    return render(request, "bargains.html", bargains=bargains)
+
+
 @app.get("/api/status")
 def api_status():
     return JSONResponse({k: v for k, v in jobs.status.items()})
@@ -188,7 +219,8 @@ def _history_svg(points: list[PricePoint], width=720, height=220) -> str:
     if not points:
         return ""
     colours = {"amazon": "#ff9900", "ezydvd": "#e4002b", "ebay": "#0064d2",
-               "jbhifi": "#e31837", "umbrella": "#6a9f58", "dvdhub": "#b58900"}
+               "jbhifi": "#e31837", "umbrella": "#6a9f58", "dvdhub": "#b58900",
+               "sanity": "#00a4a7", "rarewaves": "#d65a31"}
     xs = [p.checked_at.timestamp() for p in points]
     ys = [p.total for p in points]
     x0, x1 = min(xs), max(xs)
