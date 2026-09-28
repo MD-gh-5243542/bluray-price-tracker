@@ -4,7 +4,7 @@ import httpx
 from bs4 import BeautifulSoup
 
 from .. import fetch
-from ..matching import parse_price, score, search_query
+from ..matching import is_4k, parse_price, score, search_query
 from .base import Offer, Query
 
 BASE = "https://www.ezydvd.com.au"
@@ -54,6 +54,13 @@ def search(q: Query) -> list[Offer]:
     for o in results:
         o.score = score(q.name, q.is_4k, q.edition, o.title)
     return results
+
+
+def bargains() -> list[Offer]:
+    return sorted(
+        [offer for offer in _search("4k") if is_4k(offer.title) and offer.price is not None],
+        key=lambda offer: offer.price or 0,
+    )[:10]
 
 
 def refresh(url: str) -> Offer | None:

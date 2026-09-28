@@ -13,6 +13,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
 from . import bluray, config, jobs, notify
+from .stores import MODULES
 from .db import (STORE_NAMES, STORES, ExcludedUrl, Listing, PricePoint, Title, enabled_stores,
                  get_session, get_setting, init_db, select, set_setting)
 from .tracker import shipping_for, total_for
@@ -96,31 +97,27 @@ def index(request: Request, sort: str = "name", show: str = "wanted", q: str = "
 def bargains_page(request: Request):
     stores = enabled_stores()
     bargains = {store: [] for store in stores}
-    with get_session() as s:
-        titles = {
-            title.id: title
-            for title in s.exec(select(Title).where(Title.is_4k == True)).all()  # noqa: E712
-        }
-        listings = s.exec(select(Listing)).all()
-    for listing in listings:
-        title = titles.get(listing.title_id)
-        if (
-            title
-            and listing.store in bargains
-            and listing.status == "ok"
-            and listing.in_stock
-            and listing.price is not None
-        ):
-            bargains[listing.store].append({
-                "title": title,
-                "listing": listing,
-                "postage": shipping_for(listing.store, listing.price, listing.shipping),
-                "total": total_for(listing),
-            })
-    for offers in bargains.values():
-        offers.sort(key=lambda offer: offer["total"])
-        del offers[10:]
-    return render(request, "bargains.html", bargains=bargains)
+    errors = {}
+    for store in stores:
+        catalogue = getattr(MODULES[store], "bargains", None)
+        if not catalogue:
+            errors[store] = "Catalogue discovery is not available for this store."
+            continue
+        try:
+            for offer in catalogue():
+                if offer.in_stock and offer.price is not None:
+                    postage = shipping_for(store, offer.price, offer.shipping)
+                    bargains[store].append({
+                        "offer": offer,
+                        "postage": postage,
+                        "total": offer.price + postage,
+                    })
+            bargains[store].sort(key=lambda item: item["offer"].price)
+            bargains[store] = bargains[store][:10]
+        except Exception as exc:
+            logging.getLogger(__name__).warning("Bargains lookup failed for %s: %s", store, exc)
+            errors[store] = "Unable to load catalogue bargains right now."
+    return render(request, "bargains.html", bargains=bargains, errors=errors)
 
 
 @app.get("/api/status")

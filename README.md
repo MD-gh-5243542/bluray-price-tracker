@@ -24,7 +24,7 @@ A self-hosted wishlist for 4K Ultra HD Blu-rays. It tracks the cheapest **delive
 - Store prices show item price plus nonzero postage in parentheses; “Best” remains the delivered total. Price-history chart, lowest-ever price and target price.
 - **Alerts** via [Apprise](https://github.com/caronc/apprise/wiki) (ntfy, Discord, Telegram, email, Teams, Pushover…) when a title hits your target or a new low.
 - CSV export.
-- **Bargains** page showing the ten cheapest confirmed in-stock wishlist offers per enabled store.
+- **Bargains** page showing the ten cheapest in-stock 4K titles discovered in each enabled retailer catalogue (not limited to the wishlist).
 
 ## Run with Docker
 ```bash

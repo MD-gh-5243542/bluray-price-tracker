@@ -4,7 +4,7 @@
 <div class="toolbar">
   <div>
     <h1>Bargains</h1>
-    <p class="muted small">The ten cheapest confirmed, in-stock wishlist offers per enabled store. Totals include estimated or listed postage.</p>
+    <p class="muted small">The ten cheapest in-stock 4K titles found in each enabled retailer catalogue, sorted by item price. Postage is an estimate where the retailer does not provide it.</p>
   </div>
 </div>
 
@@ -12,15 +12,17 @@
 {% for st, offers in bargains.items() %}
   <section>
     <h2>{{ STORE_NAMES[st] }}</h2>
-    {% if offers %}
+    {% if errors.get(st) %}
+    <div class="empty"><p class="error">{{ errors[st] }}</p></div>
+    {% elif offers %}
     <table class="stores">
       <thead><tr><th>#</th><th>Title</th><th class="num">Item (+ postage)</th><th class="num">Delivered</th></tr></thead>
       <tbody>
       {% for offer in offers %}
         <tr>
           <td class="muted">{{ loop.index }}</td>
-          <td><a href="/title/{{ offer.title.id }}">{{ offer.title.name }}</a></td>
-          <td class="num"><a href="{{ offer.listing.url }}" target="_blank" rel="noopener">{{ offer.listing.price|money }}{% if offer.postage > 0 %} (+{{ offer.postage|money }}){% endif %}</a></td>
+          <td><a href="{{ offer.offer.url }}" target="_blank" rel="noopener">{{ offer.offer.title }}</a></td>
+          <td class="num">{{ offer.offer.price|money }}{% if offer.postage > 0 %} (+{{ offer.postage|money }}){% endif %}</td>
           <td class="num"><strong>{{ offer.total|money }}</strong></td>
         </tr>
       {% endfor %}

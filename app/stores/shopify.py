@@ -71,3 +71,37 @@ def refresh(base: str, store: str, url: str) -> Offer | None:
         image=urljoin(base, image) if image else None,
         by_barcode=bool(variant.get("barcode")),
     )
+
+
+def bargains(base: str, store: str, limit: int = 10) -> list[Offer]:
+    data = fetch.get_json(
+        urljoin(base, "/products.json"),
+        params={"limit": "250", "sort_by": "price-ascending"},
+    )
+    offers = []
+    for product in data.get("products", []):
+        title = str(product.get("title") or "")
+        metadata = " ".join([
+            title, str(product.get("product_type") or ""),
+            *map(str, product.get("tags") or []),
+        ])
+        if "merchandise" in metadata.lower() or "format_merch" in metadata.lower():
+            continue
+        if not is_4k(metadata):
+            continue
+        variants = product.get("variants") or []
+        available = [variant for variant in variants if variant.get("available")]
+        if not available:
+            continue
+        variant = min(available, key=lambda item: float(item.get("price") or 0))
+        path = f"/products/{product.get('handle')}" if product.get("handle") else ""
+        if not path:
+            continue
+        image = product.get("featured_image")
+        variant_id = variant.get("id")
+        offer_url = f"{urljoin(base, path)}?variant={variant_id}" if variant_id else urljoin(base, path)
+        offers.append(Offer(
+            store, offer_url, title, float(variant.get("price") or 0),
+            in_stock=bool(available), image=urljoin(base, image) if image else None,
+        ))
+    return sorted(offers, key=lambda offer: offer.price or 0)[:limit]

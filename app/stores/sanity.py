@@ -83,3 +83,32 @@ def refresh(url: str) -> Offer | None:
         in_stock=not any(value in availability for value in ("outofstock", "soldout")),
         image=str(image) if image else None,
     )
+
+
+def bargains(limit: int = 10) -> list[Offer]:
+    data = fetch.get_json(
+        SEARCH_URL,
+        params={
+            "q": "4K",
+            "rows": "50",
+            "sort": "price asc",
+            "format": "json",
+            "version": "V2",
+            "api-key": API_KEY,
+        },
+    )
+    offers = []
+    for product in data.get("response", {}).get("products", []):
+        fmt = str(product.get("format") or "")
+        title = str(product.get("title") or "")
+        if not is_4k(fmt) and not is_4k(title):
+            continue
+        availability = str(product.get("availability") or "").lower()
+        offers.append(Offer(
+            STORE, str(product.get("productUrl") or ""), f"{title} [{fmt}]" if fmt else title,
+            parse_price(str(product.get("price") or "")),
+            in_stock=availability not in ("", "not in stock", "out of stock"),
+            image=str(product.get("image_link") or product.get("imageUrl") or "") or None,
+        ))
+    return [offer for offer in offers
+            if offer.url and offer.price is not None and offer.in_stock][:limit]

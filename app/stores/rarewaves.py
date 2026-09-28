@@ -19,3 +19,7 @@ def search(q: Query) -> list[Offer]:
 
 def refresh(url: str) -> Offer | None:
     return shopify.refresh(BASE, STORE, url)
+
+
+def bargains() -> list[Offer]:
+    return shopify.bargains(BASE, STORE)

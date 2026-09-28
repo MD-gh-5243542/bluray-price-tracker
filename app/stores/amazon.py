@@ -108,3 +108,8 @@ def search(q: Query) -> list[Offer]:
         if o.by_barcode:
             o.score = max(o.score, 90.0) if o.score >= 50 else o.score
     return results
+
+
+def bargains() -> list[Offer]:
+    return [offer for offer in sorted(_search("4K"), key=lambda item: item.price or 1e9)
+            if is_4k(offer.title) and offer.price is not None][:10]

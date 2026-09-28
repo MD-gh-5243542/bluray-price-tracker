@@ -9,7 +9,7 @@ from urllib.parse import urlencode
 from bs4 import BeautifulSoup
 
 from .. import config, fetch
-from ..matching import parse_price, score, score_barcode, search_query
+from ..matching import is_4k, parse_price, score, score_barcode, search_query
 from .base import Offer, Query
 
 log = logging.getLogger(__name__)
@@ -115,6 +115,14 @@ def search(q: Query) -> list[Offer]:
         if o.by_barcode and o.score >= 55:
             o.score = max(o.score, 85.0)
     return results
+
+
+def bargains() -> list[Offer]:
+    results = _api("4K", None) if config.EBAY_CLIENT_ID and config.EBAY_CLIENT_SECRET else _scrape("4K")
+    return sorted(
+        [offer for offer in results if is_4k(offer.title) and offer.price is not None],
+        key=lambda offer: (offer.price or 0) + (offer.shipping or 0),
+    )[:10]
 
 
 def refresh(url: str) -> Offer | None:
