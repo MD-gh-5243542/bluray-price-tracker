@@ -223,8 +223,9 @@ def _history_svg(points: list[PricePoint], width=720, height=220) -> str:
             parts.append(f'<polyline points="{path}" fill="none" stroke="{c}" stroke-width="2"/>')
         for p in pts:
             postage = max(0, p.total - p.price)
+            postage_text = f" (+${postage:.2f})" if postage else ""
             parts.append(f'<circle cx="{px(p.checked_at.timestamp()):.1f}" cy="{py(p.total):.1f}" r="3" fill="{c}">'
-                         f'<title>{STORE_NAMES[store]} ${p.price:.2f} (+${postage:.2f}) — '
+                         f'<title>{STORE_NAMES[store]} ${p.price:.2f}{postage_text} — '
                          f'${p.total:.2f} delivered — {_local(p.checked_at)}</title></circle>')
     parts.append("</svg>")
     return "".join(parts)

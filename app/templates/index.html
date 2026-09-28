@@ -69,7 +69,7 @@
           {% if l and l.status in ('ok','review') and tot.get(st) is not none %}
             <a href="{{ l.url }}" target="_blank" rel="noopener"
                class="{% if st == t.best_store %}best{% endif %} {% if l.status=='review' %}uncertain{% endif %} {% if not l.in_stock %}oos{% endif %}"
-               title="{{ l.product_title }}{% if l.status=='review' %} (unconfirmed match){% endif %}{% if not l.in_stock %} — out of stock{% endif %}">{{ l.price|money }} (+{{ pst.get(st)|money }})</a>
+               title="{{ l.product_title }}{% if l.status=='review' %} (unconfirmed match){% endif %}{% if not l.in_stock %} — out of stock{% endif %}">{{ l.price|money }}{% if pst.get(st) > 0 %} (+{{ pst.get(st)|money }}){% endif %}</a>
           {% elif l and l.status == 'error' %}<span class="muted" title="{{ l.error }}">error</span>
           {% elif l and l.status == 'not_found' %}<span class="muted">—</span>
           {% else %}<span class="muted">…</span>{% endif %}

@@ -47,7 +47,7 @@
         {% else %}<span class="muted">Not checked yet</span>{% endif %}
         {% if l and l.error and l.status == 'error' and l.url %}<div class="error small">{{ l.error }}</div>{% endif %}
       </td>
-      <td class="num">{% if l and l.price is not none %}{{ l.price|money }} (+{{ ship[st]|money }}){% if l.shipping is none and st != 'ebay' %}<span class="muted" title="Estimated — set in Settings">*</span>{% endif %}{% else %}—{% endif %}</td>
+      <td class="num">{% if l and l.price is not none %}{{ l.price|money }}{% if ship[st] > 0 %} (+{{ ship[st]|money }}){% if l.shipping is none and st != 'ebay' %}<span class="muted" title="Estimated — set in Settings">*</span>{% endif %}{% endif %}{% else %}—{% endif %}</td>
       <td class="num"><strong>{{ totals[st]|money if l else '—' }}</strong></td>
       <td>
         {% if l and l.status == 'ok' %}<span class="badge ok">{{ 'pinned' if l.pinned else 'matched' }}</span>
@@ -74,7 +74,7 @@
                   <form method="post" action="/title/{{ t.id }}/listing/{{ st }}/pin">
                     <input type="hidden" name="url" value="{{ c.url }}">
                     <button class="linkish">{{ c.title }}</button>
-                    <span class="muted small">{% if c.price is not none %}{{ c.price|money }} (+{{ c.postage|money }}){% else %}—{% endif %} · score {{ c.score|int }}{% if not c.in_stock %} · OOS{% endif %}</span>
+                    <span class="muted small">{% if c.price is not none %}{{ c.price|money }}{% if c.postage > 0 %} (+{{ c.postage|money }}){% endif %}{% else %}—{% endif %} · score {{ c.score|int }}{% if not c.in_stock %} · OOS{% endif %}</span>
                     <a class="small" href="{{ c.url }}" target="_blank" rel="noopener">↗</a>
                   </form>
                 </li>
