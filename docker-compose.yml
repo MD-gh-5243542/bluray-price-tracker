@@ -31,3 +31,9 @@ services:
       SHIPPING_AMAZON: "0"
       SHIPPING_JBHIFI: "6.95"
       FREE_SHIPPING_OVER_JBHIFI: "99"
+      # Estimates: Umbrella rates vary by weight/destination; it advertises free AU shipping over $120.
+      SHIPPING_UMBRELLA: "9.95"
+      FREE_SHIPPING_OVER_UMBRELLA: "120"
+      # DVD Hub standard tracked postage rate.
+      SHIPPING_DVDHUB: "7.95"
+      FREE_SHIPPING_OVER_DVDHUB: "0"

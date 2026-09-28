@@ -41,12 +41,16 @@ SHIPPING = {
     "ezydvd": float(os.getenv("SHIPPING_EZYDVD", "6.95")),
     "zavvi": float(os.getenv("SHIPPING_ZAVVI", "4.99")),
     "jbhifi": float(os.getenv("SHIPPING_JBHIFI", "6.95")),
+    "umbrella": float(os.getenv("SHIPPING_UMBRELLA", "9.95")),
+    "dvdhub": float(os.getenv("SHIPPING_DVDHUB", "7.95")),
 }
 FREE_SHIPPING_OVER = {
     "amazon": float(os.getenv("FREE_SHIPPING_OVER_AMAZON", "0")),
     "ezydvd": float(os.getenv("FREE_SHIPPING_OVER_EZYDVD", "80")),
     "zavvi": float(os.getenv("FREE_SHIPPING_OVER_ZAVVI", "0")),
     "jbhifi": float(os.getenv("FREE_SHIPPING_OVER_JBHIFI", "99")),
+    "umbrella": float(os.getenv("FREE_SHIPPING_OVER_UMBRELLA", "120")),
+    "dvdhub": float(os.getenv("FREE_SHIPPING_OVER_DVDHUB", "0")),
 }
 
 # Default blu-ray.com country used when searching for new titles.

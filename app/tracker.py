@@ -113,11 +113,11 @@ def check_store(session, title: Title, store: str) -> Listing:
                         offers.append(wl)
             offer, cands = _choose(store, offers)
             listing.candidates_json = _cands_json(cands)
-            if offer and store == "amazon":
+            if offer and store in ("amazon", "umbrella", "dvdhub"):
                 source_url = offer.url
                 refreshed = mod.refresh(source_url)
                 if refreshed:
-                    if refreshed.url != source_url:
+                    if store == "amazon" and refreshed.url != source_url:
                         _discard_amazon_parent_prices(session, title, source_url)
                     refreshed.score = score(title.name, title.is_4k, title.edition or "",
                                              refreshed.title, loose=offer.by_barcode)

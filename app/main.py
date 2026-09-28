@@ -187,7 +187,8 @@ def add_title(url: str = Form(...), target_price: str = Form(""), check_now: str
 def _history_svg(points: list[PricePoint], width=720, height=220) -> str:
     if not points:
         return ""
-    colours = {"amazon": "#ff9900", "ezydvd": "#e4002b", "zavvi": "#8a5cf6", "ebay": "#0064d2", "jbhifi": "#e31837"}
+    colours = {"amazon": "#ff9900", "ezydvd": "#e4002b", "zavvi": "#8a5cf6", "ebay": "#0064d2",
+               "jbhifi": "#e31837", "umbrella": "#6a9f58", "dvdhub": "#b58900"}
     xs = [p.checked_at.timestamp() for p in points]
     ys = [p.total for p in points]
     x0, x1 = min(xs), max(xs)

@@ -6,13 +6,15 @@ from sqlmodel import Field, Session, SQLModel, create_engine, select
 
 from .config import DB_PATH
 
-STORES = ["amazon", "ezydvd", "zavvi", "ebay", "jbhifi"]
+STORES = ["amazon", "ezydvd", "zavvi", "ebay", "jbhifi", "umbrella", "dvdhub"]
 STORE_NAMES = {
     "amazon": "Amazon AU",
     "ezydvd": "EzyDVD",
     "zavvi": "Zavvi AU",
     "ebay": "eBay AU",
     "jbhifi": "JB Hi-Fi AU",
+    "umbrella": "Umbrella Entertainment",
+    "dvdhub": "DVD Hub",
 }
 
 
@@ -118,6 +120,18 @@ def _sqlite_pragmas(dbapi_conn, _):
 
 def init_db() -> None:
     SQLModel.metadata.create_all(engine)
+    migration_key = "enabled_stores_umbrella_dvdhub_v1"
+    with Session(engine) as session:
+        if session.get(Setting, migration_key) is None:
+            setting = session.get(Setting, "enabled_stores")
+            if setting:
+                enabled = setting.value.split(",")
+                for store in ("umbrella", "dvdhub"):
+                    if store not in enabled:
+                        enabled.append(store)
+                setting.value = ",".join(store for store in enabled if store in STORES)
+            session.add(Setting(key=migration_key, value="1"))
+            session.commit()
 
 
 def get_session() -> Session:
