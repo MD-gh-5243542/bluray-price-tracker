@@ -27,7 +27,6 @@ services:
       # Delivery estimates (AUD) added to retailer prices
       SHIPPING_EZYDVD: "6.95"
       FREE_SHIPPING_OVER_EZYDVD: "80"
-      SHIPPING_ZAVVI: "4.99"
       SHIPPING_AMAZON: "0"
       SHIPPING_JBHIFI: "6.95"
       FREE_SHIPPING_OVER_JBHIFI: "99"

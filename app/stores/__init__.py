@@ -1,9 +1,8 @@
-from . import amazon, dvdhub, ebay, ezydvd, jbhifi, umbrella, zavvi
+from . import amazon, dvdhub, ebay, ezydvd, jbhifi, umbrella
 
 MODULES = {
     "amazon": amazon,
     "ezydvd": ezydvd,
-    "zavvi": zavvi,
     "ebay": ebay,
     "jbhifi": jbhifi,
     "umbrella": umbrella,

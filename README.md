@@ -6,7 +6,6 @@ A self-hosted wishlist for 4K Ultra HD Blu-rays. It tracks the cheapest **delive
 |---|---|
 | Amazon AU | product page + barcode search |
 | EzyDVD | site search |
-| Zavvi AU | site search + product JSON-LD |
 | eBay AU | Buy It Now, new, AU-located (headless browser, or the eBay Browse API if keys are set) |
 | JB Hi-Fi AU | site search + product JSON-LD |
 | Umbrella Entertainment | Shopify product search + variant data |
@@ -45,7 +44,6 @@ Data (SQLite) lives in `./data`, so back that folder up.
 | `EBAY_CLIENT_ID` / `EBAY_CLIENT_SECRET` | – | optional [eBay Browse API](https://developer.ebay.com) keys |
 | `EBAY_INCLUDE_USED` | `false` | include used listings |
 | `SHIPPING_EZYDVD` / `FREE_SHIPPING_OVER_EZYDVD` | `6.95` / `80` | delivery estimate |
-| `SHIPPING_ZAVVI` / `FREE_SHIPPING_OVER_ZAVVI` | `4.99` / `0` | |
 | `SHIPPING_AMAZON` | `0` | Prime / free over $59 |
 | `SHIPPING_JBHIFI` / `FREE_SHIPPING_OVER_JBHIFI` | `6.95` / `99` | configurable delivery estimate |
 | `SHIPPING_UMBRELLA` / `FREE_SHIPPING_OVER_UMBRELLA` | `9.95` / `120` | `$9.95` is an estimate; postage varies by weight/location; free AU shipping over $120 |

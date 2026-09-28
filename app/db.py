@@ -6,11 +6,10 @@ from sqlmodel import Field, Session, SQLModel, create_engine, select
 
 from .config import DB_PATH
 
-STORES = ["amazon", "ezydvd", "zavvi", "ebay", "jbhifi", "umbrella", "dvdhub"]
+STORES = ["amazon", "ezydvd", "ebay", "jbhifi", "umbrella", "dvdhub"]
 STORE_NAMES = {
     "amazon": "Amazon AU",
     "ezydvd": "EzyDVD",
-    "zavvi": "Zavvi AU",
     "ebay": "eBay AU",
     "jbhifi": "JB Hi-Fi AU",
     "umbrella": "Umbrella Entertainment",
@@ -120,8 +119,8 @@ def _sqlite_pragmas(dbapi_conn, _):
 
 def init_db() -> None:
     SQLModel.metadata.create_all(engine)
-    migration_key = "enabled_stores_umbrella_dvdhub_v1"
     with Session(engine) as session:
+        migration_key = "enabled_stores_umbrella_dvdhub_v1"
         if session.get(Setting, migration_key) is None:
             setting = session.get(Setting, "enabled_stores")
             if setting:
@@ -131,6 +130,16 @@ def init_db() -> None:
                         enabled.append(store)
                 setting.value = ",".join(store for store in enabled if store in STORES)
             session.add(Setting(key=migration_key, value="1"))
+            session.commit()
+
+        remove_zavvi_key = "enabled_stores_remove_zavvi_v1"
+        if session.get(Setting, remove_zavvi_key) is None:
+            setting = session.get(Setting, "enabled_stores")
+            if setting:
+                setting.value = ",".join(
+                    store for store in setting.value.split(",") if store in STORES
+                )
+            session.add(Setting(key=remove_zavvi_key, value="1"))
             session.commit()
 
 
