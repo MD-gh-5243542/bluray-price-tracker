@@ -29,16 +29,85 @@ def _shipping_from_rows(rows: list[str]) -> float | None:
     return None
 
 
+_CARD = "li.s-card, li.s-item"
+_HOME = "https://www.ebay.com.au/"
+
+
+def _is_error(page) -> bool:
+    try:
+        return "error page" in page.title().lower()
+    except Exception:
+        return True
+
+
+def _warm(page) -> None:
+    """eBay's bot checks serve an error page until the session has cookies from a
+    good home page load, which often takes a couple of visits."""
+    for _ in range(4):
+        fetch._throttle(_HOME)
+        page.goto(_HOME, wait_until="domcontentloaded", timeout=30000)
+        page.wait_for_timeout(1500)
+        if not _is_error(page):
+            return
+
+
+def _load_results(url: str, query: str) -> str:
+    for attempt in range(2):
+        page = fetch._context().new_page()
+        try:
+            page.route("**/*", lambda r: r.abort()
+                       if r.request.resource_type in {"image", "media", "font"} else r.continue_())
+            if _HOME not in fetch._tl.warmed:
+                _warm(page)
+                fetch._tl.warmed.add(_HOME)
+            for _ in range(3):
+                fetch._throttle(url)
+                page.goto(url, wait_until="domcontentloaded", timeout=30000)
+                if not _is_error(page):
+                    break
+                _warm(page)
+            else:
+                # Direct links keep failing: search like a person does, then apply filters.
+                try:
+                    page.fill("input#gh-ac", query, timeout=10000)
+                    page.keyboard.press("Enter")
+                    page.wait_for_load_state("domcontentloaded")
+                    page.wait_for_timeout(1500)
+                    if not _is_error(page):
+                        page.goto(url, wait_until="domcontentloaded", timeout=30000)
+                except fetch.PlaywrightError as e:
+                    if "Target crashed" in str(e):
+                        raise
+                    log.debug("eBay search-box fallback failed: %s", e)
+            if _is_error(page):
+                raise fetch.Blocked("eBay returned its error page (bot check)")
+            try:
+                page.wait_for_selector(_CARD, timeout=10000)
+            except Exception:
+                pass
+            return page.content()
+        except fetch.PlaywrightError as e:
+            if attempt or "Target crashed" not in str(e):
+                raise
+            log.warning("eBay page crashed; restarting browser and retrying")
+            fetch.shutdown_browser()
+        finally:
+            try:
+                page.close()
+            except Exception:
+                pass
+    raise RuntimeError("eBay page crashed twice")
+
+
 def _scrape(query: str) -> list[Offer]:
     params = {"_nkw": query, "LH_BIN": "1", "_sop": "15", "_ipg": "25", "LH_PrefLoc": "1"}
     if not config.EBAY_INCLUDE_USED:
         params["LH_ItemCondition"] = "1000"
     url = "https://www.ebay.com.au/sch/i.html?" + urlencode(params)
-    html = fetch.browser_get(url, wait_selector="li.s-card, li.s-item",
-                             block_resources={"image", "media", "font"})
+    html = _load_results(url, query)
     s = BeautifulSoup(html, "lxml")
     out = []
-    for card in s.select("li.s-card, li.s-item"):
+    for card in s.select(_CARD):
         a = card.select_one("a.su-link[href*='/itm/'], a.s-card__link[href*='/itm/'], a.s-item__link")
         if not a:
             continue
