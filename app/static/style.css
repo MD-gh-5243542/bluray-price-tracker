@@ -69,6 +69,10 @@ table { width: 100%; border-collapse: collapse; background: var(--panel); border
 th, td { padding: .5rem .6rem; border-bottom: 1px solid var(--line); text-align: left; vertical-align: middle; }
 th { color: var(--muted); font-weight: 500; font-size: .85em; background: var(--panel2); }
 td.num, th.num { text-align: right; white-space: nowrap; }
+th.sortable a { color: inherit; display: block; }
+th.sortable a:hover { color: var(--text); text-decoration: none; }
+th.sorted { color: var(--text); }
+th.sorted .arrow { font-size: .75em; color: var(--accent); }
 tr:last-child td { border-bottom: 0; }
 tr.hit { background: #2fbf710f; }
 .wishlist .sel { width: 28px; padding-right: 0; }

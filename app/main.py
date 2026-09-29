@@ -66,7 +66,7 @@ def back(url: str) -> RedirectResponse:
 # ------------------------------------------------------------------ list ---
 
 @app.get("/", response_class=HTMLResponse)
-def index(request: Request, sort: str = "name", show: str = "wanted", q: str = ""):
+def index(request: Request, sort: str = "name", show: str = "wanted", q: str = "", dir: str = ""):
     with get_session() as s:
         stmt = select(Title).where(Title.is_4k == True)  # noqa: E712
         if show == "wanted":
@@ -79,20 +79,42 @@ def index(request: Request, sort: str = "name", show: str = "wanted", q: str = "
         listings = {}
         for l in s.exec(select(Listing)).all():
             listings.setdefault(l.title_id, {})[l.store] = l
+
+    def name_key(t):
+        return t.name.lower().removeprefix("the ")
+
+    def store_price(store):
+        def value(t):
+            l = listings.get(t.id, {}).get(store)
+            return l.price if l and l.status in ("ok", "review") and l.price is not None else None
+        return value
+
     keys = {
-        "name": lambda t: t.name.lower().removeprefix("the "),
-        "price": lambda t: (t.best_price is None, t.best_price or 0),
-        "release": lambda t: (t.release_date is None, t.release_date or date.min),
+        "name": name_key,
+        "price": lambda t: t.best_price,
+        "target": lambda t: t.target_price,
+        "lowest": lambda t: t.lowest_ever,
+        "release": lambda t: t.release_date,
         "added": lambda t: t.created_at,
-        "saving": lambda t: -((t.target_price or 0) - (t.best_price or 1e9)),
+        "saving": lambda t: (t.best_price - t.target_price) if t.best_price and t.target_price else None,
     }
-    titles.sort(key=keys.get(sort, keys["name"]), reverse=sort in ("release", "added"))
+    if sort.startswith("store:") and sort[6:] in STORES:
+        value = store_price(sort[6:])
+    else:
+        sort = sort if sort in keys else "name"
+        value = keys[sort]
+    desc = dir == "desc" if dir in ("asc", "desc") else sort in ("release", "added")
+    # Titles without a value for the sort column always go last, in title order.
+    present = sorted((t for t in titles if value(t) is not None),
+                     key=lambda t: (value(t), name_key(t)), reverse=desc)
+    missing = sorted((t for t in titles if value(t) is None), key=name_key)
+    titles = present + missing
     totals = {tid: {st: total_for(l) for st, l in d.items()} for tid, d in listings.items()}
     postage = {tid: {st: shipping_for(st, l.price, l.shipping) for st, l in d.items()}
                for tid, d in listings.items()}
     review_count = sum(1 for t in titles if t.needs_review)
     return render(request, "index.html", titles=titles, listings=listings, totals=totals, postage=postage,
-                  sort=sort, show=show, q=q, review_count=review_count, next_run=jobs.next_run())
+                  sort=sort, desc=desc, show=show, q=q, review_count=review_count, next_run=jobs.next_run())
 
 
 @app.get("/bargains", response_class=HTMLResponse)

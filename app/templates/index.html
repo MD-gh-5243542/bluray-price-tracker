@@ -8,13 +8,18 @@
       <option value="purchased" {% if show=='purchased' %}selected{% endif %}>Purchased</option>
       <option value="all" {% if show=='all' %}selected{% endif %}>All</option>
     </select>
-    <select name="sort" onchange="this.form.submit()">
+    <select name="sort" onchange="this.form.dir.value=''; this.form.submit()">
       <option value="name" {% if sort=='name' %}selected{% endif %}>Sort: Title</option>
       <option value="price" {% if sort=='price' %}selected{% endif %}>Sort: Cheapest</option>
       <option value="saving" {% if sort=='saving' %}selected{% endif %}>Sort: Closest to target</option>
       <option value="release" {% if sort=='release' %}selected{% endif %}>Sort: Release date</option>
       <option value="added" {% if sort=='added' %}selected{% endif %}>Sort: Recently added</option>
+      {% for st in stores %}
+      <option value="store:{{ st }}" {% if sort=='store:' ~ st %}selected{% endif %}>Sort: {{ STORE_NAMES[st] }} price</option>
+      {% endfor %}
+      {% if sort in ('target', 'lowest') %}<option value="{{ sort }}" selected>Sort: {{ sort|capitalize }}</option>{% endif %}
     </select>
+    <input type="hidden" name="dir" value="{{ 'desc' if desc else 'asc' }}">
   </form>
   <div class="actions">
     <a class="btn" href="/export.csv">Export CSV</a>
@@ -40,12 +45,21 @@
   <p><a class="btn primary" href="/import">Import your Amazon wishlist</a> or <a class="btn" href="/add">add a title</a></p>
 </div>
 {% else %}
+{% macro sorthead(key, label, cls='') -%}
+  {%- set active = sort == key -%}
+  {%- set next_dir = 'asc' if active and desc else ('desc' if active else 'asc') -%}
+  <th class="{{ cls }} sortable{% if active %} sorted{% endif %}"
+      {% if active %}aria-sort="{{ 'descending' if desc else 'ascending' }}"{% endif %}>
+    <a href="?{{ {'sort': key, 'dir': next_dir, 'show': show, 'q': q}|urlencode }}"
+       title="Sort by {{ label }}">{{ label }}{% if active %} <span class="arrow">{{ '▼' if desc else '▲' }}</span>{% endif %}</a>
+  </th>
+{%- endmacro %}
 <table class="wishlist">
   <thead>
     <tr>
-      <th class="sel"><input type="checkbox" id="sel-all" title="Select all" aria-label="Select all"></th><th></th><th>Title</th>
-      {% for st in stores %}<th class="num">{{ STORE_NAMES[st] }}</th>{% endfor %}
-      <th class="num">Best</th><th class="num">Target</th><th class="num">Lowest</th>
+      <th class="sel"><input type="checkbox" id="sel-all" title="Select all" aria-label="Select all"></th><th></th>{{ sorthead('name', 'Title') }}
+      {% for st in stores %}{{ sorthead('store:' ~ st, STORE_NAMES[st], 'num') }}{% endfor %}
+      {{ sorthead('price', 'Best', 'num') }}{{ sorthead('target', 'Target', 'num') }}{{ sorthead('lowest', 'Lowest', 'num') }}
     </tr>
   </thead>
   <tbody>
