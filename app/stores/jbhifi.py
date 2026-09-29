@@ -6,7 +6,7 @@ from urllib.parse import quote, urljoin
 from bs4 import BeautifulSoup
 
 from .. import fetch
-from ..matching import is_4k, parse_price, score, search_query
+from ..matching import is_4k, parse_price, search_query
 from .base import Offer, Query
 
 BASE = "https://www.jbhifi.com.au"
@@ -63,7 +63,7 @@ def search(q: Query) -> list[Offer]:
     html = fetch.browser_get(url, wait_selector='[data-testid="product-card-title"]', scroll=True)
     results = _parse_search(html)
     for offer in results:
-        offer.score = score(q.name, q.is_4k, q.edition, offer.title)
+        offer.score = q.score(offer.title)
     return results
 
 

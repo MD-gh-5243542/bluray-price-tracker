@@ -86,9 +86,26 @@ def _numbers(core: str) -> set[str]:
     return out
 
 
+_YEAR = re.compile(r"\b(19[2-9]\d|20\d\d)\b")
+
+
+def year_conflict(wanted_year: str | int | None, candidate: str) -> bool:
+    """True when the candidate names release years and none is the film's year.
+
+    Separates same-name films, e.g. Point Break (1991) vs Point Break (2015)."""
+    m = _YEAR.search(str(wanted_year or ""))
+    if not m:
+        return False
+    years = {int(y) for y in _YEAR.findall(candidate or "")}
+    return bool(years) and all(abs(y - int(m.group(1))) > 1 for y in years)
+
+
 def score(wanted_name: str, wanted_4k: bool, wanted_edition: str, candidate: str,
-          loose: bool = False) -> float:
-    """0-100 likelihood that `candidate` is the wanted release."""
+          loose: bool = False, strict_edition: bool = True, wanted_year: str | None = None) -> float:
+    """0-100 likelihood that `candidate` is the wanted release.
+
+    With strict_edition=False any edition of the film (steelbook, standard...)
+    is equally acceptable."""
     if not candidate:
         return 0.0
     if wanted_4k != is_4k(candidate):
@@ -104,20 +121,22 @@ def score(wanted_name: str, wanted_4k: bool, wanted_edition: str, candidate: str
     if _numbers(a) != _numbers(b):
         s -= 25
     wanted_full = f"{wanted_name} {wanted_edition or ''}"
-    if is_steelbook(wanted_full) != is_steelbook(candidate):
+    if strict_edition and is_steelbook(wanted_full) != is_steelbook(candidate):
         s -= 15
     if is_boxset(wanted_full) != is_boxset(candidate):
         s -= 25
+    if year_conflict(wanted_year, candidate):
+        s = min(s - 30, REVIEW - 12)  # a different film of the same name
     return max(0.0, min(100.0, s))
 
 
 def score_barcode(wanted_name: str, wanted_4k: bool, wanted_edition: str, candidate: str,
-                  loose: bool = False) -> float:
+                  loose: bool = False, **kwargs) -> float:
     """Score title identity for a barcode hit; the barcode establishes the format."""
     title = re.sub(
         r"\b(?:4k|uhd|2160p|dvd|blu[\s-]?ray|ultra[\s-]?hd)\b", " ", candidate, flags=re.I)
     title += " 4K Ultra HD" if wanted_4k else " Blu-ray"
-    return score(wanted_name, wanted_4k, wanted_edition, title, loose=loose)
+    return score(wanted_name, wanted_4k, wanted_edition, title, loose=loose, **kwargs)
 
 
 def parse_price(text: str) -> float | None:

@@ -5,6 +5,7 @@
   {% if t.cover_url %}<img class="cover-lg" src="{{ t.cover_url }}" alt="">{% endif %}
   <div class="grow">
     <h1>{{ t.name }} <span class="badge {{ 'uhd' if t.is_4k else 'bd' }}">{{ '4K' if t.is_4k else 'Blu-ray' }}</span>
+      <span class="badge" title="Which releases count for price tracking">{{ MATCH_MODES.get(t.match_mode or 'any', 'Any 4K release') }}</span>
       {% if t.purchased %}<span class="badge ok">purchased</span>{% endif %}</h1>
 
     {% if t.needs_review %}
@@ -40,6 +41,7 @@
       <td>
         {% if l and l.url and l.status in ('ok','review','error') %}
           <a href="{{ l.url }}" target="_blank" rel="noopener">{{ l.product_title or l.url }}</a>
+          {% if l.by_barcode %}<span class="badge ok" title="Found by one of this title's UPC/EANs">UPC match</span>{% endif %}
           {% if l.in_stock == false %}<span class="badge oos">out of stock</span>{% endif %}
           {% if l.pinned %}<span class="badge ok" title="You chose this product; it won't be auto-replaced">pinned</span>{% endif %}
         {% elif l and l.status == 'not_found' %}<span class="muted">No matching product found</span>
@@ -74,7 +76,7 @@
                   <form method="post" action="/title/{{ t.id }}/listing/{{ st }}/pin">
                     <input type="hidden" name="url" value="{{ c.url }}">
                     <button class="linkish">{{ c.title }}</button>
-                    <span class="muted small">{% if c.price is not none %}{{ c.price|money }}{% if c.postage > 0 %} (+{{ c.postage|money }}){% endif %}{% else %}—{% endif %} · score {{ c.score|int }}{% if not c.in_stock %} · OOS{% endif %}</span>
+                    <span class="muted small">{% if c.price is not none %}{{ c.price|money }}{% if c.postage > 0 %} (+{{ c.postage|money }}){% endif %}{% else %}—{% endif %} · score {{ c.score|int }}{% if c.by_barcode %} · UPC{% endif %}{% if not c.in_stock %} · OOS{% endif %}</span>
                     <a class="small" href="{{ c.url }}" target="_blank" rel="noopener">↗</a>
                   </form>
                 </li>
@@ -105,10 +107,25 @@
   <section>
     <h2>Tracking options</h2>
     <form method="post" action="/title/{{ t.id }}/update" class="stack">
+      <label>Which releases count?
+        <select name="match_mode">
+          {% for key, label in MATCH_MODES.items() %}
+          <option value="{{ key }}" {% if (t.match_mode or 'any') == key %}selected{% endif %}>{{ label }}</option>
+          {% endfor %}
+        </select>
+        <span class="muted small"><strong>Any 4K release</strong>: cheapest 4K disc of this film, any edition; the UPCs below are also searched.
+          <strong>Exact edition</strong>: only the main UPC/EAN.
+          <strong>Selected editions</strong>: the main UPC/EAN plus the additional ones.
+          Changing this re-matches the stores (pinned products are kept).</span>
+      </label>
       <label>UPC / EAN
         <input type="text" name="upc" value="{{ t.upc or '' }}" inputmode="numeric" autocomplete="off"
                pattern="[0-9]{8,14}" maxlength="14" placeholder="Not listed on blu-ray.com">
-        <span class="muted small">Used for Amazon and eBay searches. Enter 8, 12, 13 or 14 digits to override the blu-ray.com value, or leave blank for title search.</span>
+        <span class="muted small">Searched at Amazon and eBay and checked at Sanity. Enter 8, 12, 13 or 14 digits to override the blu-ray.com value.</span>
+      </label>
+      <label>Additional UPC / EANs <span class="muted small">(other acceptable editions, comma separated)</span>
+        <input type="text" name="alt_upcs" value="{{ t.alt_upcs or '' }}" inputmode="numeric" autocomplete="off"
+               pattern="[0-9,; ]*" placeholder="e.g. 5053083261993, 9317731159245">
       </label>
       <label>Target price (alert when at or below)
         <input type="number" step="0.01" min="0" name="target_price" value="{{ t.target_price or '' }}"></label>

@@ -4,7 +4,7 @@ import httpx
 from bs4 import BeautifulSoup
 
 from .. import fetch
-from ..matching import is_4k, parse_price, score, search_query
+from ..matching import is_4k, parse_price, search_query
 from .base import Offer, Query
 
 BASE = "https://www.ezydvd.com.au"
@@ -52,7 +52,7 @@ def search(q: Query) -> list[Offer]:
         # Retry with just the core name (EzyDVD search is strict)
         results = _search(search_query(q.name))
     for o in results:
-        o.score = score(q.name, q.is_4k, q.edition, o.title)
+        o.score = q.score(o.title)
     return results
 
 

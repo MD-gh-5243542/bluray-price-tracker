@@ -36,6 +36,9 @@ class Title(SQLModel, table=True):
     country: Optional[str] = None
     is_4k: bool = False
     upc: Optional[str] = Field(default=None, index=True)
+    # any = any 4K release of the film; exact = only `upc`; selected = `upc` + `alt_upcs`.
+    match_mode: str = "any"
+    alt_upcs: Optional[str] = None  # comma-separated extra acceptable UPC/EANs
     release_date: Optional[date] = None
     cover_url: Optional[str] = None
     studio: Optional[str] = None
@@ -77,6 +80,7 @@ class Listing(SQLModel, table=True):
     in_stock: Optional[bool] = None
     condition: Optional[str] = None
     match_score: Optional[float] = None
+    by_barcode: bool = False  # matched via one of the title's UPCs
     # pinned = user confirmed this URL; never auto-replace it
     pinned: bool = False
     status: str = "pending"  # pending | ok | review | not_found | error
@@ -125,8 +129,30 @@ def _sqlite_pragmas(dbapi_conn, _):
     cur.close()
 
 
+_NEW_COLUMNS = {
+    "title": {
+        "match_mode": "VARCHAR NOT NULL DEFAULT 'any'",
+        "alt_upcs": "VARCHAR",
+    },
+    "listing": {
+        "by_barcode": "BOOLEAN NOT NULL DEFAULT 0",
+    },
+}
+
+
+def _add_missing_columns() -> None:
+    # create_all() does not alter existing tables, so add new columns by hand.
+    with engine.begin() as conn:
+        for table, columns in _NEW_COLUMNS.items():
+            existing = {row[1] for row in conn.exec_driver_sql(f"PRAGMA table_info({table})")}
+            for name, ddl in columns.items():
+                if name not in existing:
+                    conn.exec_driver_sql(f"ALTER TABLE {table} ADD COLUMN {name} {ddl}")
+
+
 def init_db() -> None:
     SQLModel.metadata.create_all(engine)
+    _add_missing_columns()
     with Session(engine) as session:
         migration_key = "enabled_stores_umbrella_dvdhub_v1"
         if session.get(Setting, migration_key) is None:

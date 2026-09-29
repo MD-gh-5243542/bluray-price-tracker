@@ -8,7 +8,18 @@
       const s = await r.json();
       if (s.running) {
         el.classList.remove("idle");
-        el.innerHTML = '<span class="spinner"></span> ' + esc(s.running) + " <small>" + esc(s.detail || "") + "</small>";
+        const control = s.cancelling
+          ? ' <small class="muted">· cancelling after current store…</small>'
+          : ' <form method="post" action="/jobs/cancel" class="inline cancel-job"><button class="btn small danger" title="Stops after the current store; queued checks are dropped">Cancel</button></form>';
+        const html = '<span class="spinner"></span> ' + esc(s.running) + " <small>" + esc(s.detail || "") + "</small>" + control;
+        if (el.dataset.html !== html) {
+          el.dataset.html = html;
+          el.innerHTML = html;
+          const form = el.querySelector("form.cancel-job");
+          if (form) form.addEventListener("submit", (ev) => {
+            if (!confirm("Cancel the running price check? It stops after the store currently being checked; queued checks are dropped.")) ev.preventDefault();
+          });
+        }
         wasRunning = true;
       } else {
         if (wasRunning && !document.querySelector("input:focus, textarea:focus, details[open].pick")) {
@@ -17,6 +28,7 @@
         }
         wasRunning = false;
         el.classList.add("idle");
+        delete el.dataset.html;
         el.innerHTML = s.last ? "<small>" + esc(s.last) + "</small>" : "";
       }
     } catch (e) { /* ignore */ }

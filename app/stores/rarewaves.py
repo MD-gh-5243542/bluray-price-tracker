@@ -1,5 +1,5 @@
 """Rarewaves international Shopify store."""
-from ..matching import is_4k, score, search_query
+from ..matching import is_4k, search_query
 from . import shopify
 from .base import Offer, Query
 
@@ -13,7 +13,7 @@ def search(q: Query) -> list[Offer]:
         text += " 4K"
     offers = shopify.search(BASE, STORE, text)
     for offer in offers:
-        offer.score = score(q.name, q.is_4k, q.edition, offer.title)
+        offer.score = q.score(offer.title)
     return offers
 
 

@@ -20,7 +20,15 @@ A self-hosted wishlist for 4K Ultra HD Blu-rays. It tracks the cheapest **delive
 - **Add titles** by searching blu-ray.com or pasting a 4K blu-ray.com URL. Pick the exact edition you want (e.g. the JB Hi-Fi SteelBook vs the standard release).
 - Prices are checked automatically every 12 h (configurable), and you can check manually: every title, only the titles you tick on the wishlist (“Check selected”), or one title (“Check now”).
 - Per-store controls: “Wrong match” (exclude and re-search), pick another result, or pin an exact product URL.
-- Amazon and eBay searches use the blu-ray.com UPC when available; eBay does not broaden a UPC search into a same-title search. Amazon verifies the 4K variant on the product page before saving its price.
+- Each title has an edition match mode (title page → Tracking options):
+  - **Any 4K release** (default): the cheapest 4K disc of the film from any edition. Stores are searched by title, and by UPC where supported.
+  - **Exact edition**: only the title's main UPC/EAN counts. Amazon and eBay search by barcode only, and title-matched steelbooks and collector's editions are penalised.
+  - **Selected editions**: the main UPC/EAN plus any additional UPC/EANs you list.
+  - Changing the mode or the UPCs re-matches the stores; pinned products are kept.
+  - Listings found by barcode show a "UPC match" badge.
+  - Store titles that name a different year (e.g. *Point Break (2015)* when tracking the 1991 film) are rejected.
+- Amazon verifies the 4K variant on the product page before saving its price.
+- A running price check can be cancelled from the header. Queued checks are dropped immediately; the running check stops after the store it is currently checking, and prices already fetched are kept.
 - Store prices show item price plus nonzero postage in parentheses; “Best” remains the delivered total. Price-history chart, lowest-ever price and target price.
 - **Alerts** via [Apprise](https://github.com/caronc/apprise/wiki) (ntfy, Discord, Telegram, email, Teams, Pushover…) when a title hits your target or a new low.
 - CSV export.

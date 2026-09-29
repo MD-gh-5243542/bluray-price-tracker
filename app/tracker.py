@@ -1,16 +1,29 @@
 """Price checking: match each title at each store and record prices."""
 import json
 import logging
+import threading
 from datetime import datetime
 
 from . import config, notify
 from .db import (STORE_NAMES, ExcludedUrl, Listing, PricePoint, Title, enabled_stores,
                  get_session, select)
-from .matching import AUTO_ACCEPT, REVIEW, score
+from .matching import AUTO_ACCEPT, REVIEW
 from .stores import MODULES
 from .stores.base import Offer, Query
 
 log = logging.getLogger(__name__)
+
+# Set by jobs.cancel(); checks stop before the next store.
+cancel_event = threading.Event()
+
+
+class Cancelled(Exception):
+    pass
+
+
+def _raise_if_cancelled() -> None:
+    if cancel_event.is_set():
+        raise Cancelled()
 
 
 def shipping_for(store: str, price: float | None, listed: float | None) -> float:
@@ -30,7 +43,7 @@ def total_for(listing: Listing) -> float | None:
     return round(listing.price + shipping_for(listing.store, listing.price, listing.shipping), 2)
 
 
-def _choose(store: str, offers: list[Offer]) -> tuple[Offer | None, list[Offer]]:
+def _choose(store: str, offers: list[Offer], any_edition: bool = False) -> tuple[Offer | None, list[Offer]]:
     ranked = sorted(offers, key=lambda o: -o.score)
     plausible = [o for o in ranked if o.score >= REVIEW]
     if not plausible:
@@ -38,8 +51,8 @@ def _choose(store: str, offers: list[Offer]) -> tuple[Offer | None, list[Offer]]
     strong = [o for o in plausible if o.score >= AUTO_ACCEPT]
     pool = strong or plausible
     priced = [o for o in pool if o.price is not None and o.in_stock]
-    if store == "ebay":
-        # Many sellers, same product: take the cheapest delivered price.
+    if store == "ebay" or (any_edition and strong):
+        # Any confident match is acceptable: take the cheapest delivered price.
         pick = min(priced, key=lambda o: o.price + (o.shipping or 0)) if priced else pool[0]
     else:
         top = pool[0].score
@@ -51,7 +64,8 @@ def _choose(store: str, offers: list[Offer]) -> tuple[Offer | None, list[Offer]]
 def _cands_json(cands: list[Offer]) -> str:
     return json.dumps([
         {"url": o.url, "title": o.title, "price": o.price, "shipping": o.shipping,
-         "in_stock": o.in_stock, "score": round(o.score, 1), "image": o.image}
+         "in_stock": o.in_stock, "score": round(o.score, 1), "image": o.image,
+         "by_barcode": o.by_barcode}
         for o in cands
     ])
 
@@ -91,7 +105,8 @@ def check_store(session, title: Title, store: str) -> Listing:
             if offer:
                 if store == "amazon" and offer.url != pinned_url:
                     _discard_amazon_parent_prices(session, title, pinned_url)
-                offer.score = score(title.name, True, title.edition or "", offer.title)
+                offer.score = q.score(offer.title)
+                offer.by_barcode = False
                 if offer.score < REVIEW:
                     offer = None
             listing.status = "ok" if offer else "error"
@@ -106,21 +121,23 @@ def check_store(session, title: Title, store: str) -> Listing:
                     if wl:
                         if wl.url != wl_url:
                             _discard_amazon_parent_prices(session, title, wl_url)
-                        wl.score = max(score(title.name, title.is_4k, title.edition or "", wl.title, loose=True), 0)
+                        wl.score = max(q.score(wl.title, loose=True), 0)
                         # It was on the user's own wishlist, so trust it if the format matches.
                         if wl.score >= 50:
                             wl.score = max(wl.score, AUTO_ACCEPT)
                         offers.append(wl)
-            offer, cands = _choose(store, offers)
+            offer, cands = _choose(store, offers, q.any_edition)
             listing.candidates_json = _cands_json(cands)
             if offer and store in ("amazon", "umbrella", "dvdhub", "sanity", "rarewaves"):
                 source_url = offer.url
+                matched_by_barcode = offer.by_barcode
                 refreshed = mod.refresh(source_url)
                 if refreshed:
                     if store == "amazon" and refreshed.url != source_url:
                         _discard_amazon_parent_prices(session, title, source_url)
-                    refreshed.score = score(title.name, title.is_4k, title.edition or "",
-                                             refreshed.title, loose=offer.by_barcode)
+                    refreshed.score = (q.score_barcode(refreshed.title) if matched_by_barcode
+                                       else q.score(refreshed.title))
+                    refreshed.by_barcode = matched_by_barcode
                     offer = refreshed if refreshed.score >= REVIEW else None
                 else:
                     offer = None
@@ -128,6 +145,7 @@ def check_store(session, title: Title, store: str) -> Listing:
                 refreshed = mod.refresh(offer.url)
                 if refreshed:
                     refreshed.score = offer.score
+                    refreshed.by_barcode = offer.by_barcode
                     offer = refreshed
             if offer is None:
                 listing.status = "not_found"
@@ -148,6 +166,7 @@ def check_store(session, title: Title, store: str) -> Listing:
         listing.in_stock = offer.in_stock
         listing.condition = offer.condition
         listing.match_score = offer.score
+        listing.by_barcode = offer.by_barcode
         if offer.price is not None:
             session.add(PricePoint(
                 title_id=title.id, store=store, price=offer.price,
@@ -158,6 +177,7 @@ def check_store(session, title: Title, store: str) -> Listing:
         listing.product_title = None
         listing.in_stock = None
         listing.match_score = None
+        listing.by_barcode = False
     session.add(listing)
     return listing
 
@@ -208,29 +228,37 @@ def _maybe_notify(title: Title, best: Listing | None, total: float | None, prev_
 
 
 def check_title(title_id: int, stores: list[str] | None = None, progress=None) -> None:
+    _raise_if_cancelled()
     with get_session() as s:
         title = s.get(Title, title_id)
         if not title or not title.is_4k:
             return
+        cancelled = False
         for store in stores or enabled_stores():
+            if cancel_event.is_set():
+                cancelled = True
+                break
             if progress:
                 progress(f"{title.name} — {STORE_NAMES[store]}")
             check_store(s, title, store)
             s.commit()
+        # Keep the stores that were checked before a cancel.
         title.last_checked = datetime.utcnow()
         update_best(s, title)
         s.add(title)
         s.commit()
+    if cancelled:
+        raise Cancelled()
 
 
 def check_all(progress=None) -> None:
     with get_session() as s:
         ids = [t.id for t in s.exec(select(Title).where(
             Title.purchased == False, Title.is_4k == True))]  # noqa: E712
-    for i, tid in enumerate(ids, 1):
-        check_title(tid, progress=(lambda msg, i=i: progress(f"[{i}/{len(ids)}] {msg}")) if progress else None)
+    check_titles(ids, progress=progress)
 
 
 def check_titles(ids: list[int], progress=None) -> None:
     for i, tid in enumerate(ids, 1):
+        _raise_if_cancelled()
         check_title(tid, progress=(lambda msg, i=i: progress(f"[{i}/{len(ids)}] {msg}")) if progress else None)

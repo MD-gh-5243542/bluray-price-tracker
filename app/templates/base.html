@@ -19,6 +19,8 @@
     </nav>
     <div id="jobstatus" class="jobstatus {% if not status.running %}idle{% endif %}">
       {% if status.running %}<span class="spinner"></span> {{ status.running }} <small>{{ status.detail }}</small>
+        {% if status.cancelling %}<small class="muted">· cancelling after current store…</small>
+        {% else %}<form method="post" action="/jobs/cancel" class="inline cancel-job" onsubmit="return confirm('Cancel the running price check? It stops after the store currently being checked; queued checks are dropped.')"><button class="btn small danger" title="Stops after the current store; queued checks are dropped">Cancel</button></form>{% endif %}
       {% elif status.last %}<small>{{ status.last }}</small>{% endif %}
     </div>
   </header>

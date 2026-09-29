@@ -3,7 +3,7 @@ used from one thread, plus the periodic schedule."""
 import logging
 import threading
 import traceback
-from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import Future, ThreadPoolExecutor
 from datetime import datetime
 
 from apscheduler.schedulers.background import BackgroundScheduler
@@ -14,7 +14,9 @@ log = logging.getLogger(__name__)
 
 _executor = ThreadPoolExecutor(max_workers=1, thread_name_prefix="scraper")
 _lock = threading.Lock()
-status = {"running": None, "detail": "", "queue": 0, "last": None, "last_error": None}
+_pending: set[Future] = set()
+status = {"running": None, "detail": "", "queue": 0, "last": None, "last_error": None,
+          "cancelling": False}
 _scheduler = BackgroundScheduler(timezone="Australia/Sydney")
 
 
@@ -23,16 +25,24 @@ def _run(name: str, fn, *args):
         status["queue"] = max(0, status["queue"] - 1)
         status["running"] = name
         status["detail"] = ""
+        status["cancelling"] = False
+        tracker.cancel_event.clear()
+    outcome = "finished"
     try:
         fn(*args, progress=lambda msg: status.__setitem__("detail", msg))
         status["last_error"] = None
+    except tracker.Cancelled:
+        outcome = "cancelled"
+        log.info("Job %s cancelled", name)
     except Exception as e:
         log.error("Job %s failed: %s\n%s", name, e, traceback.format_exc())
         status["last_error"] = f"{name}: {e}"
     finally:
         status["running"] = None
         status["detail"] = ""
-        status["last"] = f"{name} finished {datetime.now().strftime('%a %d %b %H:%M')}"
+        status["cancelling"] = False
+        tracker.cancel_event.clear()
+        status["last"] = f"{name} {outcome} {datetime.now().strftime('%a %d %b %H:%M')}"
         if status["queue"] == 0:
             # Free the browser's memory between runs.
             fetch.shutdown_browser()
@@ -41,7 +51,22 @@ def _run(name: str, fn, *args):
 def submit(name: str, fn, *args):
     with _lock:
         status["queue"] += 1
-    return _executor.submit(_run, name, fn, *args)
+        future = _executor.submit(_run, name, fn, *args)
+        _pending.add(future)
+    future.add_done_callback(_pending.discard)
+    return future
+
+
+def cancel() -> bool:
+    """Drop queued jobs and stop the running one before its next store check."""
+    with _lock:
+        dropped = sum(1 for future in list(_pending) if future.cancel())
+        status["queue"] = max(0, status["queue"] - dropped)
+        running = status["running"] is not None
+        if running:
+            status["cancelling"] = True
+            tracker.cancel_event.set()
+    return running or dropped > 0
 
 
 def queue_check_all():

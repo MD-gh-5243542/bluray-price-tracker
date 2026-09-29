@@ -5,7 +5,7 @@ from urllib.parse import urljoin
 from bs4 import BeautifulSoup
 
 from .. import fetch
-from ..matching import is_4k, parse_price, score, search_query
+from ..matching import is_4k, parse_price, search_query
 from .base import Offer, Query
 
 BASE = "https://www.sanity.com.au"
@@ -45,9 +45,14 @@ def search(q: Query) -> list[Offer]:
             parse_price(str(product.get("price") or "")),
             in_stock=availability not in ("", "not in stock", "out of stock"),
             image=str(product.get("image_link") or product.get("imageUrl") or "") or None,
+            by_barcode=str(product.get("upc") or "").lstrip("0") in {u.lstrip("0") for u in q.upcs},
         ))
     for offer in out:
-        offer.score = score(q.name, q.is_4k, q.edition, offer.title)
+        offer.score = q.score(offer.title)
+        if offer.by_barcode and offer.score >= 50:
+            offer.score = max(offer.score, 90.0)
+    if q.upcs and not q.any_edition and any(offer.by_barcode for offer in out):
+        out = [offer for offer in out if offer.by_barcode]
     return [offer for offer in out if offer.url]
 
 

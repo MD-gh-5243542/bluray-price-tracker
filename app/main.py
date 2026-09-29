@@ -5,6 +5,7 @@ import logging
 from contextlib import asynccontextmanager
 from datetime import date, datetime
 from pathlib import Path
+from urllib.parse import urlsplit
 from zoneinfo import ZoneInfo
 
 from fastapi import FastAPI, Form, HTTPException, Request
@@ -14,6 +15,7 @@ from fastapi.templating import Jinja2Templates
 
 from . import bluray, config, jobs, notify
 from .stores import MODULES
+from .stores.base import MATCH_MODES, parse_upcs
 from .db import (STORE_NAMES, STORES, ExcludedUrl, Listing, PricePoint, Title, enabled_stores,
                  get_session, get_setting, init_db, select, set_setting)
 from .tracker import shipping_for, total_for
@@ -48,7 +50,7 @@ def _money(v) -> str:
 
 templates.env.filters["local"] = _local
 templates.env.filters["money"] = _money
-templates.env.globals.update(STORE_NAMES=STORE_NAMES, today=lambda: date.today())
+templates.env.globals.update(STORE_NAMES=STORE_NAMES, MATCH_MODES=MATCH_MODES, today=lambda: date.today())
 
 
 def render(request: Request, name: str, **ctx):
@@ -123,6 +125,14 @@ def bargains_page(request: Request):
 @app.get("/api/status")
 def api_status():
     return JSONResponse({k: v for k, v in jobs.status.items()})
+
+
+@app.post("/jobs/cancel")
+def cancel_jobs(request: Request):
+    jobs.cancel()
+    referer = request.headers.get("referer", "")
+    path = urlsplit(referer).path if referer else "/"
+    return back(path if path.startswith("/") else "/")
 
 
 @app.post("/check-all")
@@ -316,23 +326,50 @@ def title_editions(request: Request, tid: int):
     return templates.TemplateResponse(request, "_editions.html", {"t": t, "editions": rel.other_editions})
 
 
+def _valid_upc(value: str) -> bool:
+    return value.isdigit() and len(value) in (8, 12, 13, 14)
+
+
 @app.post("/title/{tid}/update")
 def title_update(tid: int, target_price: str = Form(""), notes: str = Form(""),
-                 search_terms: str = Form(""), upc: str = Form("")):
+                 search_terms: str = Form(""), upc: str = Form(""),
+                 match_mode: str = Form("any"), alt_upcs: str = Form("")):
     upc = upc.strip()
-    if upc and (not upc.isdigit() or len(upc) not in (8, 12, 13, 14)):
+    if upc and not _valid_upc(upc):
         raise HTTPException(400, "UPC/EAN must contain 8, 12, 13 or 14 digits")
+    extra = [u for u in parse_upcs(alt_upcs) if u != upc]
+    bad = [u for u in extra if not _valid_upc(u)]
+    if bad:
+        raise HTTPException(400, f"Invalid additional UPC/EAN: {', '.join(bad)}")
+    if match_mode not in MATCH_MODES:
+        raise HTTPException(400, "Unknown match mode")
+    if match_mode == "exact" and not upc:
+        raise HTTPException(400, "Exact edition matching needs a UPC/EAN")
+    if match_mode == "selected" and not (upc or extra):
+        raise HTTPException(400, "Selected editions matching needs at least one UPC/EAN")
     with get_session() as s:
         t = s.get(Title, tid)
         if not t:
             raise HTTPException(404)
+        matching_changed = (t.upc != (upc or None) or t.match_mode != match_mode
+                            or (t.alt_upcs or "") != ",".join(extra))
         t.target_price = float(target_price) if target_price.strip() else None
         t.notes = notes.strip() or None
         t.search_terms = search_terms.strip() or None
         t.upc = upc or None
+        t.match_mode = match_mode
+        t.alt_upcs = ",".join(dict.fromkeys(extra)) or None
         t.last_notified_price = None
+        if matching_changed:
+            # Unpinned matches were chosen under the old rules; redo them on the next check.
+            for listing in s.exec(select(Listing).where(Listing.title_id == tid)).all():
+                if not listing.pinned:
+                    s.delete(listing)
+            t.best_price = t.best_store = t.best_url = None
         s.add(t)
         s.commit()
+    if matching_changed:
+        jobs.queue_check_title(tid)
     return back(f"/title/{tid}")
 
 
