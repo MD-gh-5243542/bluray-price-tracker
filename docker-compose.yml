@@ -36,8 +36,9 @@ services:
       # DVD Hub standard tracked postage rate.
       SHIPPING_DVDHUB: "7.95"
       FREE_SHIPPING_OVER_DVDHUB: "0"
-      # Sanity advertises free standard shipping over $120.
-      SHIPPING_SANITY: "6.95"
+      # Sanity: $3.50 for one item, $9.95 for multiple items, free over $120.
+      SHIPPING_SANITY: "3.50"
+      SHIPPING_SANITY_MULTI: "9.95"
       FREE_SHIPPING_OVER_SANITY: "120"
       # Rarewaves rate varies by destination and basket.
       SHIPPING_RAREWAVES: "9.95"

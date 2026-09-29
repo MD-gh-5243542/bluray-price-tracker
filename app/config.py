@@ -42,9 +42,10 @@ SHIPPING = {
     "jbhifi": float(os.getenv("SHIPPING_JBHIFI", "6.95")),
     "umbrella": float(os.getenv("SHIPPING_UMBRELLA", "9.95")),
     "dvdhub": float(os.getenv("SHIPPING_DVDHUB", "7.95")),
-    "sanity": float(os.getenv("SHIPPING_SANITY", "6.95")),
+    "sanity": float(os.getenv("SHIPPING_SANITY", "3.50")),
     "rarewaves": float(os.getenv("SHIPPING_RAREWAVES", "9.95")),
 }
+SHIPPING_SANITY_MULTI = float(os.getenv("SHIPPING_SANITY_MULTI", "9.95"))
 FREE_SHIPPING_OVER = {
     "amazon": float(os.getenv("FREE_SHIPPING_OVER_AMAZON", "0")),
     "ezydvd": float(os.getenv("FREE_SHIPPING_OVER_EZYDVD", "80")),

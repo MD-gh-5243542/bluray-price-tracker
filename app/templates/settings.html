@@ -37,7 +37,7 @@
     JB Hi-Fi {{ cfg.SHIPPING.jbhifi|money }}{% if cfg.FREE_SHIPPING_OVER.jbhifi %} (free over {{ cfg.FREE_SHIPPING_OVER.jbhifi|money }}){% endif %} ·
     Umbrella {{ cfg.SHIPPING.umbrella|money }}{% if cfg.FREE_SHIPPING_OVER.umbrella %} (free over {{ cfg.FREE_SHIPPING_OVER.umbrella|money }}){% endif %} ·
     DVD Hub {{ cfg.SHIPPING.dvdhub|money }}{% if cfg.FREE_SHIPPING_OVER.dvdhub %} (free over {{ cfg.FREE_SHIPPING_OVER.dvdhub|money }}){% endif %} ·
-    Sanity {{ cfg.SHIPPING.sanity|money }}{% if cfg.FREE_SHIPPING_OVER.sanity %} (free over {{ cfg.FREE_SHIPPING_OVER.sanity|money }}){% endif %} ·
+    Sanity {{ cfg.SHIPPING.sanity|money }} single item / {{ cfg.SHIPPING_SANITY_MULTI|money }} multiple items{% if cfg.FREE_SHIPPING_OVER.sanity %} (free over {{ cfg.FREE_SHIPPING_OVER.sanity|money }}){% endif %} ·
     Rarewaves {{ cfg.SHIPPING.rarewaves|money }}{% if cfg.FREE_SHIPPING_OVER.rarewaves %} (free over {{ cfg.FREE_SHIPPING_OVER.rarewaves|money }}){% endif %} ·
     eBay uses each listing's postage</dd>
   <dt>Data directory</dt><dd><code>{{ cfg.DATA_DIR }}</code></dd>

@@ -51,7 +51,7 @@ Data (SQLite) lives in `./data`, so back that folder up.
 | `SHIPPING_JBHIFI` / `FREE_SHIPPING_OVER_JBHIFI` | `6.95` / `99` | configurable delivery estimate |
 | `SHIPPING_UMBRELLA` / `FREE_SHIPPING_OVER_UMBRELLA` | `9.95` / `120` | `$9.95` is an estimate; postage varies by weight/location; free AU shipping over $120 |
 | `SHIPPING_DVDHUB` / `FREE_SHIPPING_OVER_DVDHUB` | `7.95` / `0` | standard tracked postage |
-| `SHIPPING_SANITY` / `FREE_SHIPPING_OVER_SANITY` | `6.95` / `120` | delivery estimate; free standard shipping over $120 |
+| `SHIPPING_SANITY` / `SHIPPING_SANITY_MULTI` / `FREE_SHIPPING_OVER_SANITY` | `3.50` / `9.95` / `120` | $3.50 single-item, $9.95 multiple-item postage; free over $120. Per-title estimates use the single-item rate. |
 | `SHIPPING_RAREWAVES` / `FREE_SHIPPING_OVER_RAREWAVES` | `9.95` / `0` | estimate; actual international postage varies |
 | `BLURAY_COUNTRY` | `AU` | default country when searching blu-ray.com |
 | `USE_BROWSER` | `true` | headless Chromium (needed for eBay scraping) |
