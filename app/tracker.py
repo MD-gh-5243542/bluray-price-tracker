@@ -3,6 +3,7 @@ import json
 import logging
 import threading
 from datetime import datetime
+from urllib.parse import urlsplit
 
 from . import config, notify
 from .db import (STORE_NAMES, ExcludedUrl, Listing, PricePoint, Title, enabled_stores,
@@ -15,6 +16,7 @@ log = logging.getLogger(__name__)
 
 # Set by jobs.cancel(); checks stop before the next store.
 cancel_event = threading.Event()
+_SHOPIFY_STORES = {"dvdhub", "umbrella", "rarewaves"}
 
 
 class Cancelled(Exception):
@@ -41,6 +43,14 @@ def total_for(listing: Listing) -> float | None:
     if listing.price is None:
         return None
     return round(listing.price + shipping_for(listing.store, listing.price, listing.shipping), 2)
+
+
+def match_key(store: str, url: str) -> str:
+    if store in _SHOPIFY_STORES:
+        path = urlsplit(url).path.rstrip("/").lower()
+        if "/products/" in path:
+            return path[path.rfind("/products/"):]
+    return url
 
 
 def _choose(store: str, offers: list[Offer], any_edition: bool = False) -> tuple[Offer | None, list[Offer]]:
@@ -91,7 +101,7 @@ def check_store(session, title: Title, store: str) -> Listing:
     if listing is None:
         listing = Listing(title_id=title.id, store=store)
         session.add(listing)
-    excluded = {e.url for e in session.exec(
+    excluded = {match_key(store, e.url) for e in session.exec(
         select(ExcludedUrl).where(ExcludedUrl.title_id == title.id, ExcludedUrl.store == store))}
     q = Query(title)
     listing.error = None
@@ -115,7 +125,7 @@ def check_store(session, title: Title, store: str) -> Listing:
             if not offer:
                 listing.error = "Could not read the pinned product page"
         else:
-            offers = [o for o in mod.search(q) if o.url not in excluded]
+            offers = [o for o in mod.search(q) if match_key(store, o.url) not in excluded]
             if store == "amazon" and title.amazon_asin:
                 wl_url = mod.product_url(title.amazon_asin)
                 if wl_url not in excluded and all(o.url != wl_url for o in offers):

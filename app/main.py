@@ -18,7 +18,7 @@ from .stores import MODULES
 from .stores.base import MATCH_MODES, parse_upcs
 from .db import (STORE_NAMES, STORES, ExcludedUrl, Listing, PricePoint, Title, enabled_stores,
                  get_session, get_setting, init_db, select, set_setting)
-from .tracker import shipping_for, total_for
+from .tracker import match_key, shipping_for, total_for, update_best
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
 HERE = Path(__file__).parent
@@ -470,11 +470,28 @@ def listing_reject(tid: int, store: str):
     with get_session() as s:
         l = _listing(s, tid, store)
         if l.url:
-            s.add(ExcludedUrl(title_id=tid, store=store, url=l.url))
+            key = match_key(store, l.url)
+            existing = s.exec(select(ExcludedUrl).where(
+                ExcludedUrl.title_id == tid, ExcludedUrl.store == store)).all()
+            if not any(match_key(store, e.url) == key for e in existing):
+                s.add(ExcludedUrl(title_id=tid, store=store, url=l.url))
         l.pinned = False
         l.url = None
         l.status = "pending"
+        l.product_title = None
+        l.image = None
+        l.price = None
+        l.shipping = None
+        l.in_stock = None
+        l.condition = None
+        l.match_score = None
+        l.by_barcode = False
+        l.error = None
         s.add(l)
+        t = s.get(Title, tid)
+        if t:
+            update_best(s, t)
+            s.add(t)
         s.commit()
     jobs.queue_check_title(tid, [store])
     return back(f"/title/{tid}")
@@ -518,9 +535,10 @@ def listing_pin(tid: int, store: str, url: str = Form(...)):
         l.by_barcode = bool(picked.get("by_barcode")) if picked else False
         s.add(l)
         # Un-exclude it if the user explicitly picked it.
-        for e in s.exec(select(ExcludedUrl).where(ExcludedUrl.title_id == tid,
-                                                  ExcludedUrl.url == url)).all():
-            s.delete(e)
+        for e in s.exec(select(ExcludedUrl).where(
+                ExcludedUrl.title_id == tid, ExcludedUrl.store == store)).all():
+            if match_key(store, e.url) == match_key(store, url):
+                s.delete(e)
         s.commit()
     jobs.queue_check_title(tid, [store])
     return back(f"/title/{tid}")
