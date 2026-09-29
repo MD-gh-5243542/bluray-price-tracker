@@ -96,6 +96,8 @@ def check_store(session, title: Title, store: str) -> Listing:
     q = Query(title)
     listing.error = None
     pinned_url = listing.url if listing.pinned and store != "ebay" else None
+    # eBay listings can't be refreshed directly; keep the chosen one while it's still for sale.
+    ebay_choice = listing.url if listing.pinned and store == "ebay" else None
     # Release the write lock before slow network scraping so the UI stays usable.
     session.commit()
     offer: Offer | None = None
@@ -107,8 +109,8 @@ def check_store(session, title: Title, store: str) -> Listing:
                     _discard_amazon_parent_prices(session, title, pinned_url)
                 offer.score = q.score(offer.title)
                 offer.by_barcode = False
-                if offer.score < REVIEW:
-                    offer = None
+                # The user chose this product, so trust it over the automatic match score.
+                offer.score = max(offer.score, AUTO_ACCEPT)
             listing.status = "ok" if offer else "error"
             if not offer:
                 listing.error = "Could not read the pinned product page"
@@ -128,6 +130,15 @@ def check_store(session, title: Title, store: str) -> Listing:
                         offers.append(wl)
             offer, cands = _choose(store, offers, q.any_edition)
             listing.candidates_json = _cands_json(cands)
+            if ebay_choice:
+                chosen = next((o for o in offers if o.url == ebay_choice), None)
+                if chosen:
+                    chosen.score = max(chosen.score, AUTO_ACCEPT)
+                    offer = chosen
+                    if chosen not in cands:
+                        listing.candidates_json = _cands_json([chosen] + cands[:5])
+                else:
+                    listing.pinned = False  # sold or ended; fall back to the automatic pick
             if offer and store in ("amazon", "umbrella", "dvdhub", "sanity", "rarewaves"):
                 source_url = offer.url
                 matched_by_barcode = offer.by_barcode

@@ -485,7 +485,7 @@ def listing_accept(tid: int, store: str):
     with get_session() as s:
         l = _listing(s, tid, store)
         l.status = "ok"
-        l.pinned = store != "ebay"
+        l.pinned = True
         s.add(l)
         s.commit()
         from .tracker import update_best
@@ -501,9 +501,21 @@ def listing_pin(tid: int, store: str, url: str = Form(...)):
     url = url.strip()
     with get_session() as s:
         l = _listing(s, tid, store)
+        try:
+            cands = json.loads(l.candidates_json or "[]")
+        except ValueError:
+            cands = []
+        picked = next((c for c in cands if c.get("url") == url), None)
         l.url = url
-        l.pinned = store != "ebay"
+        l.pinned = True
         l.status = "pending"
+        l.error = None
+        # Show the chosen product straight away; the queued check confirms its price.
+        l.product_title = picked.get("title") if picked else None
+        l.price = picked.get("price") if picked else None
+        l.shipping = picked.get("shipping") if picked else None
+        l.in_stock = picked.get("in_stock") if picked else None
+        l.by_barcode = bool(picked.get("by_barcode")) if picked else False
         s.add(l)
         # Un-exclude it if the user explicitly picked it.
         for e in s.exec(select(ExcludedUrl).where(ExcludedUrl.title_id == tid,
