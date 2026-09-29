@@ -140,6 +140,19 @@ def check_selected(ids: list[int] = Form([])):
     return back("/")
 
 
+@app.post("/delete-selected")
+def delete_selected(ids: list[int] = Form([])):
+    if ids:
+        with get_session() as s:
+            for model in (Listing, PricePoint, ExcludedUrl):
+                for row in s.exec(select(model).where(model.title_id.in_(ids))).all():
+                    s.delete(row)
+            for t in s.exec(select(Title).where(Title.id.in_(ids))).all():
+                s.delete(t)
+            s.commit()
+    return back("/")
+
+
 @app.get("/export.csv")
 def export_csv():
     buf = io.StringIO()
@@ -267,7 +280,8 @@ def title_page(request: Request, tid: int, q: str = ""):
         t = s.get(Title, tid)
         if not t:
             raise HTTPException(404)
-        ls = {l.store: l for l in s.exec(select(Listing).where(Listing.title_id == tid))}
+        ls = {l.store: l for l in s.exec(select(Listing).where(Listing.title_id == tid))
+              if l.store in STORES}
         pts = s.exec(select(PricePoint).where(PricePoint.title_id == tid)
                      .order_by(PricePoint.checked_at)).all()
         excluded = s.exec(select(ExcludedUrl).where(ExcludedUrl.title_id == tid)).all()

@@ -20,6 +20,8 @@
     <a class="btn" href="/export.csv">Export CSV</a>
     <form method="post" action="/check-selected" id="checksel">
       <button class="btn" id="checksel-btn" disabled>Check selected</button>
+      <button class="btn danger" id="delsel-btn" formaction="/delete-selected" disabled
+              onclick="return confirm('Delete the selected titles and their price history?')">Delete selected</button>
     </form>
     <form method="post" action="/check-all"><button class="btn primary">Check all prices</button></form>
   </div>
@@ -87,10 +89,12 @@
   const all = document.getElementById('sel-all');
   const rows = [...document.querySelectorAll('.sel-row')];
   const btn = document.getElementById('checksel-btn');
+  const del = document.getElementById('delsel-btn');
   const sync = () => {
     const n = rows.filter(r => r.checked).length;
-    btn.disabled = n === 0;
+    btn.disabled = del.disabled = n === 0;
     btn.textContent = n ? `Check selected (${n})` : 'Check selected';
+    del.textContent = n ? `Delete selected (${n})` : 'Delete selected';
     all.checked = n > 0 && n === rows.length;
     all.indeterminate = n > 0 && n < rows.length;
   };

@@ -7,7 +7,13 @@ from sqlmodel import Field, Session, SQLModel, create_engine, select
 from .config import DB_PATH
 
 STORES = ["amazon", "ezydvd", "ebay", "jbhifi", "umbrella", "dvdhub", "sanity", "rarewaves"]
-STORE_NAMES = {
+class _StoreNames(dict):
+    # Historical rows may reference retired stores (e.g. Zavvi).
+    def __missing__(self, key):
+        return str(key or "Unknown store").replace("_", " ").title()
+
+
+STORE_NAMES = _StoreNames({
     "amazon": "Amazon AU",
     "ezydvd": "EzyDVD",
     "ebay": "eBay AU",
@@ -16,7 +22,7 @@ STORE_NAMES = {
     "dvdhub": "DVD Hub",
     "sanity": "Sanity",
     "rarewaves": "Rarewaves",
-}
+})
 
 
 class Title(SQLModel, table=True):
