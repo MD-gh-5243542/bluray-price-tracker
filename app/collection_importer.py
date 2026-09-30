@@ -10,7 +10,7 @@ from .db import Title, get_session, select
 log = logging.getLogger(__name__)
 _COLLECTION_PATH = "/community/collection.php"
 _ALLOWED_HOSTS = {"blu-ray.com", "www.blu-ray.com"}
-_PAGE_PARAMS = {"page", "start", "offset", "from"}
+_PAGE_PARAMS = {"page", "start", "offset"}
 
 
 def validate_collection_url(url: str) -> tuple[str, str]:
@@ -35,7 +35,12 @@ def _page_links(soup: BeautifulSoup, current_url: str, user_id: str) -> list[str
             continue
         if current_params.get("action") and params.get("action") != current_params["action"]:
             continue
-        if any(params.get(key) != current_params.get(key) for key in _PAGE_PARAMS):
+        if any(
+            params.get(key)
+            and params.get(key) != current_params.get(key)
+            and all(value.isdigit() for value in params[key])
+            for key in _PAGE_PARAMS
+        ):
             links.append(parsed.geturl())
     return links
 
