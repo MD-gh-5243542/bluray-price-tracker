@@ -20,10 +20,6 @@ services:
       APPRISE_URLS: ""
       # Used for links in alerts, e.g. http://docker-host:8000
       BASE_URL: ""
-      # Optional: eBay Browse API keys (more reliable than scraping)
-      EBAY_CLIENT_ID: ""
-      EBAY_CLIENT_SECRET: ""
-      EBAY_INCLUDE_USED: "false"
       # Delivery estimates (AUD) added to retailer prices
       SHIPPING_EZYDVD: "6.95"
       FREE_SHIPPING_OVER_EZYDVD: "80"

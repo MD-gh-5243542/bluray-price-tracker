@@ -17,7 +17,7 @@ DB_PATH = DATA_DIR / "tracker.db"
 CHECK_INTERVAL_HOURS = float(os.getenv("CHECK_INTERVAL_HOURS", "12"))
 # Seconds to wait between requests to the same site (be polite, avoid bans).
 REQUEST_DELAY = float(os.getenv("REQUEST_DELAY", "2.5"))
-# Set false to disable the headless browser (eBay + Amazon fallback need it).
+# Set false to disable the headless browser used by some Amazon pages.
 USE_BROWSER = _bool("USE_BROWSER", True)
 
 # Apprise notification URLs, comma separated, e.g.

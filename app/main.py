@@ -586,7 +586,7 @@ def import_start(url: str = Form(...)):
 def settings_page(request: Request, msg: str = ""):
     return render(request, "settings.html", all_stores=STORES, enabled=enabled_stores(),
                   apprise=get_setting("apprise_urls", ""), env_apprise=len(config.APPRISE_URLS),
-                  cfg=config, msg=msg, ebay_api=bool(config.EBAY_CLIENT_ID), next_run=jobs.next_run())
+                  cfg=config, msg=msg, next_run=jobs.next_run())
 
 
 @app.post("/settings")

@@ -6,7 +6,7 @@ from sqlmodel import Field, Session, SQLModel, create_engine, select
 
 from .config import DB_PATH
 
-STORES = ["amazon", "ezydvd", "ebay", "jbhifi", "umbrella", "dvdhub", "sanity", "rarewaves"]
+STORES = ["amazon", "ezydvd", "jbhifi", "umbrella", "dvdhub", "sanity", "rarewaves"]
 class _StoreNames(dict):
     # Historical rows may reference retired stores (e.g. Zavvi).
     def __missing__(self, key):
@@ -186,6 +186,21 @@ def init_db() -> None:
                         enabled.append(store)
                 setting.value = ",".join(store for store in enabled if store in STORES)
             session.add(Setting(key=add_new_stores_key, value="1"))
+            session.commit()
+
+        remove_ebay_key = "enabled_stores_remove_ebay_v1"
+        if session.get(Setting, remove_ebay_key) is None:
+            setting = session.get(Setting, "enabled_stores")
+            if setting:
+                setting.value = ",".join(
+                    store for store in setting.value.split(",") if store in STORES
+                )
+            for title in session.exec(select(Title).where(Title.best_store == "ebay")).all():
+                title.best_price = None
+                title.best_store = None
+                title.best_url = None
+                session.add(title)
+            session.add(Setting(key=remove_ebay_key, value="1"))
             session.commit()
 
 

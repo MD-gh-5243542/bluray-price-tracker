@@ -207,7 +207,7 @@ def update_best(session, title: Title) -> None:
     listings = session.exec(select(Listing).where(Listing.title_id == title.id)).all()
     best, best_total = None, None
     for l in listings:
-        if l.status != "ok" or not l.in_stock:
+        if l.store not in MODULES or l.status != "ok" or not l.in_stock:
             continue
         tot = total_for(l)
         if tot is not None and (best_total is None or tot < best_total):

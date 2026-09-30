@@ -29,8 +29,7 @@
 <dl class="facts">
   <dt>Check interval</dt><dd>every {{ cfg.CHECK_INTERVAL_HOURS|round(1) }} h {% if next_run %}(next {{ next_run.strftime('%a %d %b %H:%M') }}){% endif %}</dd>
   <dt>Request delay</dt><dd>{{ cfg.REQUEST_DELAY }} s per site</dd>
-  <dt>Headless browser</dt><dd>{{ 'enabled' if cfg.USE_BROWSER else 'disabled (eBay will not work)' }}</dd>
-  <dt>eBay</dt><dd>{{ 'Browse API' if ebay_api else 'browser scraping' }}{{ ', including used' if cfg.EBAY_INCLUDE_USED else ', new only' }}</dd>
+  <dt>Headless browser</dt><dd>{{ 'enabled' if cfg.USE_BROWSER else 'disabled (some Amazon pages may be unavailable)' }}</dd>
   <dt>Delivery estimates</dt><dd>
     Amazon {{ cfg.SHIPPING.amazon|money }}{% if cfg.FREE_SHIPPING_OVER.amazon %} (free over {{ cfg.FREE_SHIPPING_OVER.amazon|money }}){% endif %} ·
     EzyDVD {{ cfg.SHIPPING.ezydvd|money }}{% if cfg.FREE_SHIPPING_OVER.ezydvd %} (free over {{ cfg.FREE_SHIPPING_OVER.ezydvd|money }}){% endif %} ·
@@ -38,8 +37,7 @@
     Umbrella {{ cfg.SHIPPING.umbrella|money }}{% if cfg.FREE_SHIPPING_OVER.umbrella %} (free over {{ cfg.FREE_SHIPPING_OVER.umbrella|money }}){% endif %} ·
     DVD Hub {{ cfg.SHIPPING.dvdhub|money }}{% if cfg.FREE_SHIPPING_OVER.dvdhub %} (free over {{ cfg.FREE_SHIPPING_OVER.dvdhub|money }}){% endif %} ·
     Sanity {{ cfg.SHIPPING.sanity|money }} single item / {{ cfg.SHIPPING_SANITY_MULTI|money }} multiple items{% if cfg.FREE_SHIPPING_OVER.sanity %} (free over {{ cfg.FREE_SHIPPING_OVER.sanity|money }}){% endif %} ·
-    Rarewaves {{ cfg.SHIPPING.rarewaves|money }}{% if cfg.FREE_SHIPPING_OVER.rarewaves %} (free over {{ cfg.FREE_SHIPPING_OVER.rarewaves|money }}){% endif %} ·
-    eBay uses each listing's postage</dd>
+    Rarewaves {{ cfg.SHIPPING.rarewaves|money }}{% if cfg.FREE_SHIPPING_OVER.rarewaves %} (free over {{ cfg.FREE_SHIPPING_OVER.rarewaves|money }}){% endif %}</dd>
   <dt>Data directory</dt><dd><code>{{ cfg.DATA_DIR }}</code></dd>
 </dl>
 <p class="small muted">These are set with environment variables in <code>docker-compose.yml</code>.</p>
