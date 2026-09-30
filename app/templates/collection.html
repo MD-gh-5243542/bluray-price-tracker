@@ -1,0 +1,50 @@
+{% extends "base.html" %}
+{% block title %}Collection{% endblock %}
+{% block content %}
+<div class="toolbar">
+  <form method="get" class="filters">
+    <input type="search" name="q" value="{{ q }}" placeholder="Filter collection…">
+    <select name="sort" onchange="this.form.submit()">
+      <option value="name" {% if sort == 'name' %}selected{% endif %}>Sort: Title</option>
+      <option value="format" {% if sort == 'format' %}selected{% endif %}>Sort: Format</option>
+      <option value="added" {% if sort == 'added' %}selected{% endif %}>Sort: Recently added</option>
+    </select>
+  </form>
+  <div class="actions"><a class="btn" href="/import">Import blu-ray.com collection</a></div>
+</div>
+
+<h1>Your collection</h1>
+<p class="muted small">{{ titles|length }} owned release{{ '' if titles|length == 1 else 's' }} · includes standard Blu-ray and 4K Ultra HD.</p>
+
+{% if not titles %}
+<div class="empty">
+  <p>Your collection is empty.</p>
+  <p><a class="btn primary" href="/import">Import your blu-ray.com collection</a></p>
+</div>
+{% else %}
+<table class="wishlist">
+  <thead><tr><th></th><th>Title</th><th>Format</th><th>Edition</th><th>Country</th><th>Release date</th><th></th></tr></thead>
+  <tbody>
+  {% for t in titles %}
+    <tr>
+      <td class="cover">{% if t.cover_url %}<img src="{{ t.cover_url|replace('_large','_medium') }}" alt="" loading="lazy">{% endif %}</td>
+      <td class="name">
+        {% if t.bluray_url %}<a href="{{ t.bluray_url }}" target="_blank" rel="noopener">{{ t.name }}</a>{% else %}{{ t.name }}{% endif %}
+        {% if t.year %}<div class="sub">{{ t.year }}</div>{% endif %}
+      </td>
+      <td><span class="badge {{ 'uhd' if t.is_4k else 'bd' }}">{{ '4K UHD' if t.is_4k else 'Blu-ray' }}</span></td>
+      <td>{{ t.edition or '' }}</td>
+      <td>{{ t.country or '' }}</td>
+      <td>{{ t.release_date.strftime('%d %b %Y') if t.release_date else '' }}</td>
+      <td class="row-actions">
+        <form method="post" action="/collection/{{ t.id }}/remove"
+              onsubmit="return confirm('{{ 'Move this 4K release back to your wishlist?' if t.is_4k else 'Remove this release from your collection?' }}')">
+          <button class="btn small">{{ 'Move to wishlist' if t.is_4k else 'Remove' }}</button>
+        </form>
+      </td>
+    </tr>
+  {% endfor %}
+  </tbody>
+</table>
+{% endif %}
+{% endblock %}

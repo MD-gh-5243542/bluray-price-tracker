@@ -8,7 +8,7 @@ from datetime import datetime
 
 from apscheduler.schedulers.background import BackgroundScheduler
 
-from . import config, fetch, importer, tracker
+from . import collection_importer, config, fetch, importer, tracker
 
 log = logging.getLogger(__name__)
 
@@ -88,6 +88,14 @@ def queue_import(url: str):
         tracker.check_all(progress=progress)
 
     submit("Importing Amazon wishlist", job, url)
+
+
+def queue_collection_import(url: str):
+    def job(url, progress):
+        result = collection_importer.import_collection(url, progress=progress)
+        status["last_collection_import"] = result
+
+    submit("Importing blu-ray.com collection", job, url)
 
 
 def start_scheduler():

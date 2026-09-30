@@ -13,7 +13,7 @@ from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse, Stre
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
-from . import bluray, config, jobs, notify
+from . import bluray, collection_importer, config, jobs, notify
 from .stores import MODULES
 from .stores.base import MATCH_MODES, parse_upcs
 from .db import (STORE_NAMES, STORES, ExcludedUrl, Listing, PricePoint, Title, enabled_stores,
@@ -203,6 +203,41 @@ def export_csv():
     buf.seek(0)
     return StreamingResponse(iter([buf.getvalue()]), media_type="text/csv",
                              headers={"Content-Disposition": "attachment; filename=wishlist.csv"})
+
+
+@app.get("/collection", response_class=HTMLResponse)
+def collection_page(request: Request, q: str = "", sort: str = "name"):
+    with get_session() as session:
+        titles = session.exec(select(Title).where(Title.purchased == True)).all()  # noqa: E712
+    if q:
+        titles = [title for title in titles
+                  if q.lower() in f"{title.name} {title.edition or ''} {title.year or ''}".lower()]
+    if sort == "format":
+        titles.sort(key=lambda title: (title.is_4k, title.name.lower()))
+    elif sort == "added":
+        titles.sort(key=lambda title: title.created_at, reverse=True)
+    else:
+        sort = "name"
+        titles.sort(key=lambda title: title.name.lower().removeprefix("the "))
+    return render(request, "collection.html", titles=titles, q=q, sort=sort)
+
+
+@app.post("/collection/{tid}/remove")
+def collection_remove(tid: int):
+    with get_session() as session:
+        title = session.get(Title, tid)
+        if not title:
+            raise HTTPException(404)
+        if title.is_4k:
+            title.purchased = False
+            session.add(title)
+        else:
+            for model in (Listing, PricePoint, ExcludedUrl):
+                for row in session.exec(select(model).where(model.title_id == tid)).all():
+                    session.delete(row)
+            session.delete(title)
+        session.commit()
+    return back("/collection")
 
 
 # ------------------------------------------------------------------- add ---
@@ -570,13 +605,27 @@ def excluded_delete(tid: int, eid: int):
 @app.get("/import", response_class=HTMLResponse)
 def import_page(request: Request):
     return render(request, "import.html", url=get_setting("amazon_wishlist_url", ""),
-                  last=jobs.status.get("last_import"))
+                  last=jobs.status.get("last_import"),
+                  collection_url=get_setting("bluray_collection_url", ""),
+                  last_collection=jobs.status.get("last_collection_import"))
 
 
 @app.post("/import")
 def import_start(url: str = Form(...)):
     set_setting("amazon_wishlist_url", url.strip())
     jobs.queue_import(url.strip())
+    return back("/import")
+
+
+@app.post("/import/collection")
+def collection_import_start(url: str = Form(...)):
+    url = url.strip()
+    try:
+        collection_importer.validate_collection_url(url)
+    except ValueError as exc:
+        raise HTTPException(400, str(exc)) from exc
+    set_setting("bluray_collection_url", url)
+    jobs.queue_collection_import(url)
     return back("/import")
 
 

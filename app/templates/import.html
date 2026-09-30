@@ -1,17 +1,32 @@
 {% extends "base.html" %}
 {% block title %}Import{% endblock %}
 {% block content %}
-<h1>Import Amazon wishlist</h1>
+<h1>Import</h1>
+<h2>Amazon wishlist</h2>
 <p class="muted">Paste the share link of a <strong>public or shared</strong> Amazon AU wishlist. Only 4K Ultra HD items are imported. Each item is matched to a blu-ray.com release (the source of truth). Anything uncertain is flagged <span class="badge review">check</span> for you to confirm. Items already imported are skipped, so you can re-run this any time to pick up new additions.</p>
 <form method="post" class="searchbar">
   <input type="url" name="url" value="{{ url }}" placeholder="https://www.amazon.com.au/hz/wishlist/ls/…" required>
   <button class="btn primary" {% if status.running %}disabled{% endif %}>Import</button>
 </form>
-{% if status.running and 'Import' in status.running %}
+{% if status.running and 'Amazon wishlist' in status.running %}
   <p><span class="spinner"></span> {{ status.detail }}</p>
   <p class="muted small">This takes a few minutes: blu-ray.com is queried politely, then all prices are checked.</p>
 {% endif %}
 {% if last %}
   <div class="alert ok">Last import: found {{ last.found }} item(s), added {{ last.added }}, skipped {{ last.skipped }} already on the list{% if last.skipped_non_4k %}, ignored {{ last.skipped_non_4k }} non-4K item(s){% endif %}. <a href="/?sort=added">View wishlist →</a></div>
+{% endif %}
+
+<h2>blu-ray.com collection</h2>
+<p class="muted">Import releases from a <strong>public</strong> blu-ray.com collection. Standard Blu-rays and 4K releases are added to <a href="/collection">your collection</a>; matching wishlist releases are marked owned. Collection imports do not start price checks. Re-import later to pick up additions.</p>
+<form method="post" action="/import/collection" class="searchbar">
+  <input type="url" name="url" value="{{ collection_url }}" placeholder="https://www.blu-ray.com/community/collection.php?u=…" required>
+  <button class="btn primary" {% if status.running %}disabled{% endif %}>Import collection</button>
+</form>
+{% if status.running and 'blu-ray.com collection' in status.running %}
+  <p><span class="spinner"></span> {{ status.detail }}</p>
+  <p class="muted small">Each release is matched to its blu-ray.com details; no retailer scans are queued.</p>
+{% endif %}
+{% if last_collection %}
+  <div class="alert ok">Last collection import: found {{ last_collection.found }}, added {{ last_collection.added }}, marked owned {{ last_collection.marked_owned }}, already owned {{ last_collection.skipped }}{% if last_collection.failed %}, failed {{ last_collection.failed }}{% endif %}. <a href="/collection">View collection →</a></div>
 {% endif %}
 {% endblock %}

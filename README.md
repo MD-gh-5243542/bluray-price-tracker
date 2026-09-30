@@ -16,6 +16,7 @@ A self-hosted wishlist for 4K Ultra HD Blu-rays. It tracks the cheapest **delive
 
 ## Features
 - **Import** your Amazon AU wishlist (public/shared link). Non-4K items are skipped; 4K items are matched to a blu-ray.com release, and uncertain matches are flagged for you to confirm.
+- **Collection** page for owned releases, including standard Blu-rays and 4K discs. Import a public blu-ray.com collection link; matching wishlist releases are marked as owned, and regular Blu-rays stay out of price scans.
 - **Add titles** by searching blu-ray.com or pasting a 4K blu-ray.com URL. Pick the exact edition you want (e.g. the JB Hi-Fi SteelBook vs the standard release).
 - Prices are checked automatically every 12 h (configurable), and you can check manually: every title, only the titles you tick on the wishlist (“Check selected”), or one title (“Check now”).
 - Per-store controls: “Wrong match” (exclude and re-search), pick another result, or pin an exact product URL.
