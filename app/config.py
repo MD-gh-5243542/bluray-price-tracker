@@ -13,8 +13,10 @@ DATA_DIR = Path(os.getenv("DATA_DIR", "./data")).resolve()
 DATA_DIR.mkdir(parents=True, exist_ok=True)
 DB_PATH = DATA_DIR / "tracker.db"
 
-# How often to re-check every title (hours).
+# Legacy setting: zero still disables scheduled checks; positive values enable the
+# daily 05:00 Australia/Sydney schedule.
 CHECK_INTERVAL_HOURS = float(os.getenv("CHECK_INTERVAL_HOURS", "12"))
+SCHEDULED_CHECKS = _bool("SCHEDULED_CHECKS", CHECK_INTERVAL_HOURS > 0)
 # Seconds to wait between requests to the same site (be polite, avoid bans).
 REQUEST_DELAY = float(os.getenv("REQUEST_DELAY", "2.5"))
 # Set false to disable the headless browser used by some Amazon pages.

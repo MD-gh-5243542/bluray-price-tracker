@@ -8,7 +8,7 @@ from datetime import datetime
 
 from apscheduler.schedulers.background import BackgroundScheduler
 
-from . import collection_importer, config, fetch, importer, tracker
+from . import cex, collection_importer, config, fetch, importer, tracker
 
 log = logging.getLogger(__name__)
 
@@ -58,7 +58,7 @@ def submit(name: str, fn, *args):
 
 
 def cancel() -> bool:
-    """Drop queued jobs and stop the running one before its next store check."""
+    """Drop queued jobs and stop the running one before its next store/request."""
     with _lock:
         dropped = sum(1 for future in list(_pending) if future.cancel())
         status["queue"] = max(0, status["queue"] - dropped)
@@ -71,6 +71,18 @@ def cancel() -> bool:
 
 def queue_check_all():
     submit("Checking all prices", tracker.check_all)
+
+
+def queue_daily_refresh():
+    def refresh(progress):
+        tracker.check_all(progress=progress)
+        cex.sync(progress=progress)
+
+    submit("Daily price and CeX refresh", refresh)
+
+
+def queue_cex_refresh():
+    submit("Refreshing CeX stock", cex.sync)
 
 
 def queue_check_title(title_id: int, stores: list[str] | None = None):
@@ -99,9 +111,9 @@ def queue_collection_import(url: str):
 
 
 def start_scheduler():
-    if config.CHECK_INTERVAL_HOURS > 0:
-        _scheduler.add_job(queue_check_all, "interval", hours=config.CHECK_INTERVAL_HOURS,
-                           id="check_all", replace_existing=True)
+    if config.SCHEDULED_CHECKS:
+        _scheduler.add_job(queue_daily_refresh, "cron", hour=5, minute=0,
+                           id="daily_refresh", replace_existing=True)
         _scheduler.start()
 
 

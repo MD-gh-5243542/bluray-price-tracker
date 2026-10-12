@@ -110,6 +110,42 @@ class PricePoint(SQLModel, table=True):
     checked_at: datetime = Field(default_factory=datetime.utcnow, index=True)
 
 
+class CexProduct(SQLModel, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    box_id: str = Field(index=True, unique=True)
+    name: str
+    category: str
+    url: Optional[str] = None
+    image: Optional[str] = None
+    sell_price: Optional[float] = None
+    cash_buy_price: Optional[float] = None
+    exchange_price: Optional[float] = None
+    online_stock: Optional[bool] = None
+    branch_stock_json: Optional[str] = None
+    price_changed: Optional[str] = None
+    first_seen: datetime = Field(default_factory=datetime.utcnow)
+    last_seen: datetime = Field(default_factory=datetime.utcnow, index=True)
+
+
+class CexEvent(SQLModel, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    box_id: str = Field(index=True)
+    product_name: str
+    event_type: str = Field(index=True)
+    old_value: Optional[str] = None
+    new_value: Optional[str] = None
+    created_at: datetime = Field(default_factory=datetime.utcnow, index=True)
+
+
+class CexTitleMatch(SQLModel, table=True):
+    key: str = Field(primary_key=True)
+    title_id: int = Field(foreign_key="title.id", index=True)
+    kind: str
+    box_id: str = Field(index=True)
+    match_score: float
+    checked_at: datetime = Field(default_factory=datetime.utcnow)
+
+
 class Setting(SQLModel, table=True):
     key: str = Field(primary_key=True)
     value: str
@@ -230,7 +266,8 @@ def enabled_stores() -> list[str]:
 
 
 __all__ = [
-    "Title", "Listing", "ExcludedUrl", "PricePoint", "Setting", "engine",
+    "Title", "Listing", "ExcludedUrl", "PricePoint", "CexProduct", "CexEvent",
+    "CexTitleMatch", "Setting", "engine",
     "init_db", "get_session", "get_setting", "set_setting", "enabled_stores",
     "STORES", "STORE_NAMES", "select",
 ]

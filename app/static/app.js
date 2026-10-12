@@ -9,15 +9,15 @@
       if (s.running) {
         el.classList.remove("idle");
         const control = s.cancelling
-          ? ' <small class="muted">· cancelling after current store…</small>'
-          : ' <form method="post" action="/jobs/cancel" class="inline cancel-job"><button class="btn small danger" title="Stops after the current store; queued checks are dropped">Cancel</button></form>';
+          ? ' <small class="muted">· cancelling after current step…</small>'
+          : ' <form method="post" action="/jobs/cancel" class="inline cancel-job"><button class="btn small danger" title="Stops after the current store or CeX request; queued checks are dropped">Cancel</button></form>';
         const html = '<span class="spinner"></span> ' + esc(s.running) + " <small>" + esc(s.detail || "") + "</small>" + control;
         if (el.dataset.html !== html) {
           el.dataset.html = html;
           el.innerHTML = html;
           const form = el.querySelector("form.cancel-job");
           if (form) form.addEventListener("submit", (ev) => {
-            if (!confirm("Cancel the running price check? It stops after the store currently being checked; queued checks are dropped.")) ev.preventDefault();
+            if (!confirm("Cancel the running check? It stops after the current store or CeX request; queued checks are dropped.")) ev.preventDefault();
           });
         }
         wasRunning = true;

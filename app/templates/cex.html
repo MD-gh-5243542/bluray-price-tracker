@@ -1,0 +1,116 @@
+{% extends "base.html" %}
+{% block title %}CeX{% endblock %}
+{% block content %}
+<div class="toolbar">
+  <div>
+    <h1>CeX collector watch</h1>
+    <p class="muted small">4K wishlist prices and local stock, plus cash and voucher offers for standard Blu-rays you own.</p>
+  </div>
+  <div class="actions">
+    <form method="post" action="/cex/refresh">
+      <button class="btn primary">Refresh CeX data</button>
+    </form>
+  </div>
+</div>
+
+<p class="muted small">
+  {% if last_sync %}Last refreshed {{ last_sync|local }}{% else %}CeX data has not been refreshed yet{% endif %}
+  · {{ catalogue_count }} 4K catalogue items cached
+  · Free delivery applies to CeX baskets over $50; an item at or below $50 may qualify when bundled with other items.
+</p>
+{% if stale %}<div class="alert warn">{% if last_sync %}CeX data may be stale; the last successful refresh was {{ last_sync|local }}.{% else %}CeX data has not been refreshed yet. Use “Refresh CeX data” to populate this page.{% endif %}</div>{% endif %}
+
+<h2>4K wishlist opportunities</h2>
+{% if wanted %}
+<table class="stores">
+  <thead><tr><th>Title</th><th>CeX listing</th><th class="num">CeX price</th><th>Blacktown</th><th>Rouse Hill</th><th class="num">Other best</th><th>Comparison</th></tr></thead>
+  <tbody>
+  {% for row in wanted %}
+    <tr class="{{ 'hit' if row.competitive else '' }}">
+      <td><a href="/title/{{ row.title.id }}">{{ row.title.name }}</a>{% if row.title.year %}<div class="muted small">{{ row.title.year }}</div>{% endif %}</td>
+      <td>
+        {% if row.product %}<a href="{{ row.product.url }}" target="_blank" rel="noopener">{{ row.product.name }}</a>
+          {% if row.match_score is not none and row.match_score < 80 %}<span class="badge review">Check match</span>{% endif %}
+        {% else %}<span class="muted">No confident CeX match</span>{% endif %}
+      </td>
+      <td class="num">
+        {% if row.product %}
+          {{ row.product.sell_price|money }}
+          {% if row.product.online_stock %}
+            <div class="muted small">{% if row.online_delivered %}online, free delivery{% else %}online, postage at checkout{% endif %}</div>
+          {% else %}<div class="muted small">not online</div>{% endif %}
+        {% endif %}
+      </td>
+      {% for store in ('Blacktown', 'Rouse Hill') %}
+      <td>
+        {% if not row.product %}<span class="muted">—</span>
+        {% elif store not in row.branches %}<span class="muted">Unknown</span>
+        {% elif row.branches.get(store) %}<span class="badge ok">In stock</span>
+        {% else %}<span class="muted">No stock</span>{% endif %}
+      </td>
+      {% endfor %}
+      <td class="num">
+        {% if row.title.best_price is not none %}
+          {{ row.title.best_price|money }}{% if row.title.best_store %}<div class="muted small">{{ STORE_NAMES[row.title.best_store] }}</div>{% endif %}
+        {% else %}<span class="muted">—</span>{% endif %}
+      </td>
+      <td>
+        {% if row.competitive %}<span class="badge ok">Competitive</span>
+        {% elif row.product %}<span class="muted small">Compare pickup or delivery</span>{% endif %}
+      </td>
+    </tr>
+  {% endfor %}
+  </tbody>
+</table>
+{% else %}
+<div class="empty"><p>No 4K wishlist titles yet.</p></div>
+{% endif %}
+
+<h2>Standard Blu-rays you could sell or trade</h2>
+<p class="muted small">Only owned standard Blu-rays with at least $3 cash or voucher value are shown. CeX offers can change after inspection.</p>
+{% if owned %}
+<table class="stores">
+  <thead><tr><th>Collection title</th><th>CeX listing</th><th class="num">Cash</th><th class="num">Voucher</th><th>Offer date</th></tr></thead>
+  <tbody>
+  {% for row in owned %}
+    <tr>
+      <td><a href="/collection">{{ row.title.name }}</a>{% if row.title.year %}<div class="muted small">{{ row.title.year }}</div>{% endif %}</td>
+      <td><a href="{{ row.product.url }}" target="_blank" rel="noopener">{{ row.product.name }}</a>
+        {% if row.match_score is not none and row.match_score < 80 %}<span class="badge review">Check match</span>{% endif %}
+      </td>
+      <td class="num">{{ row.product.cash_buy_price|money if row.product.cash_buy_price else '—' }}</td>
+      <td class="num">{{ row.product.exchange_price|money if row.product.exchange_price else '—' }}</td>
+      <td>{{ row.product.price_changed or '—' }}</td>
+    </tr>
+  {% endfor %}
+  </tbody>
+</table>
+{% else %}
+<div class="empty"><p>No qualifying CeX trade-in offers found for owned standard Blu-rays.</p></div>
+{% endif %}
+
+<h2>Recent CeX changes</h2>
+<p class="muted small">“First observed” means first seen by this tracker, not a CeX-listed arrival date. CeX does not expose a stock-added timestamp.</p>
+{% if events %}
+<table class="stores">
+  <thead><tr><th>When</th><th>Product</th><th>Change</th></tr></thead>
+  <tbody>
+  {% for row in events %}
+    <tr>
+      <td>{{ row.event.created_at|local }}</td>
+      <td>{% if row.product %}<a href="{{ row.product.url }}" target="_blank" rel="noopener">{{ row.event.product_name }}</a>{% else %}{{ row.event.product_name }}{% endif %}</td>
+      <td>
+        {% if row.event.event_type == 'new' %}New to tracked catalogue
+        {% elif row.event.event_type == 'stock_added' %}Back in stock
+        {% elif row.event.event_type == 'price' %}Price: {{ row.change }}
+        {% elif row.event.event_type == 'buyback' %}Buyback: {{ row.change }}
+        {% else %}{{ row.change }}{% endif %}
+      </td>
+    </tr>
+  {% endfor %}
+  </tbody>
+</table>
+{% else %}
+<div class="empty"><p>No new, restocked or repriced items recorded in the last 30 days.</p></div>
+{% endif %}
+{% endblock %}

@@ -11,7 +11,7 @@ services:
     restart: unless-stopped
     environment:
       TZ: Australia/Sydney
-      CHECK_INTERVAL_HOURS: "12"
+      SCHEDULED_CHECKS: "true"
       REQUEST_DELAY: "2.5"
       # Alerts via Apprise — comma separated. Examples:
       #   ntfy://ntfy.sh/my-secret-bluray-topic

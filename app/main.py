@@ -13,11 +13,11 @@ from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse, Stre
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
-from . import bluray, collection_importer, config, jobs, notify
+from . import bluray, cex, collection_importer, config, jobs, notify
 from .stores import MODULES
 from .stores.base import MATCH_MODES, parse_upcs
-from .db import (STORE_NAMES, STORES, ExcludedUrl, Listing, PricePoint, Title, enabled_stores,
-                 get_session, get_setting, init_db, select, set_setting)
+from .db import (STORE_NAMES, STORES, CexTitleMatch, ExcludedUrl, Listing, PricePoint, Title,
+                 enabled_stores, get_session, get_setting, init_db, select, set_setting)
 from .tracker import match_key, shipping_for, total_for, update_best
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
@@ -176,7 +176,7 @@ def check_selected(ids: list[int] = Form([])):
 def delete_selected(ids: list[int] = Form([])):
     if ids:
         with get_session() as s:
-            for model in (Listing, PricePoint, ExcludedUrl):
+            for model in (Listing, PricePoint, ExcludedUrl, CexTitleMatch):
                 for row in s.exec(select(model).where(model.title_id.in_(ids))).all():
                     s.delete(row)
             for t in s.exec(select(Title).where(Title.id.in_(ids))).all():
@@ -222,6 +222,17 @@ def collection_page(request: Request, q: str = "", sort: str = "name"):
     return render(request, "collection.html", titles=titles, q=q, sort=sort)
 
 
+@app.get("/cex", response_class=HTMLResponse)
+def cex_page(request: Request):
+    return render(request, "cex.html", **cex.page_data())
+
+
+@app.post("/cex/refresh")
+def cex_refresh():
+    jobs.queue_cex_refresh()
+    return back("/cex")
+
+
 @app.post("/collection/{tid}/remove")
 def collection_remove(tid: int):
     with get_session() as session:
@@ -231,8 +242,10 @@ def collection_remove(tid: int):
         if title.is_4k:
             title.purchased = False
             session.add(title)
+            for match in session.exec(select(CexTitleMatch).where(CexTitleMatch.title_id == tid)).all():
+                session.delete(match)
         else:
-            for model in (Listing, PricePoint, ExcludedUrl):
+            for model in (Listing, PricePoint, ExcludedUrl, CexTitleMatch):
                 for row in session.exec(select(model).where(model.title_id == tid)).all():
                     session.delete(row)
             session.delete(title)
@@ -422,6 +435,8 @@ def title_update(tid: int, target_price: str = Form(""), notes: str = Form(""),
             for listing in s.exec(select(Listing).where(Listing.title_id == tid)).all():
                 if not listing.pinned:
                     s.delete(listing)
+            for match in s.exec(select(CexTitleMatch).where(CexTitleMatch.title_id == tid)).all():
+                s.delete(match)
             t.best_price = t.best_store = t.best_url = None
         s.add(t)
         s.commit()
@@ -434,7 +449,11 @@ def title_update(tid: int, target_price: str = Form(""), notes: str = Form(""),
 def title_purchased(tid: int, value: str = Form("1")):
     with get_session() as s:
         t = s.get(Title, tid)
+        if not t:
+            raise HTTPException(404)
         t.purchased = value == "1"
+        for match in s.exec(select(CexTitleMatch).where(CexTitleMatch.title_id == tid)).all():
+            s.delete(match)
         s.add(t)
         s.commit()
     return back(f"/title/{tid}")
@@ -462,6 +481,8 @@ def title_release(tid: int, url: str = Form(...)):
         t.needs_review = False
         t.best_price = t.best_store = t.best_url = None
         t.lowest_ever = None
+        for match in s.exec(select(CexTitleMatch).where(CexTitleMatch.title_id == tid)).all():
+            s.delete(match)
         # Store matches were for the old release; re-match everything that isn't pinned.
         for l in s.exec(select(Listing).where(Listing.title_id == tid)).all():
             if not l.pinned:
@@ -481,7 +502,7 @@ def title_check(tid: int):
 @app.post("/title/{tid}/delete")
 def title_delete(tid: int):
     with get_session() as s:
-        for model in (Listing, PricePoint, ExcludedUrl):
+        for model in (Listing, PricePoint, ExcludedUrl, CexTitleMatch):
             for row in s.exec(select(model).where(model.title_id == tid)).all():
                 s.delete(row)
         t = s.get(Title, tid)

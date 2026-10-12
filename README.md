@@ -11,6 +11,7 @@ A self-hosted wishlist for 4K Ultra HD Blu-rays. It tracks the cheapest **delive
 | DVD Hub | Shopify product search + variant data |
 | Sanity | Unbxd product search + JSON-LD product data |
 | Rarewaves | Shopify product search + variant data |
+| CeX AU | Public product search feed for 4K stock, branch availability and buyback values |
 
 **[blu-ray.com](https://www.blu-ray.com) is the source of truth** for each title: edition, country, barcode, release date and cover art. Only 4K releases are imported, added, and tracked. Store listings are matched against that release using the barcode where possible, then by fuzzy title matching with 4K, SteelBook and box-set guards.
 
@@ -18,7 +19,9 @@ A self-hosted wishlist for 4K Ultra HD Blu-rays. It tracks the cheapest **delive
 - **Import** your Amazon AU wishlist (public/shared link). Non-4K items are skipped; 4K items are matched to a blu-ray.com release, and uncertain matches are flagged for you to confirm.
 - **Collection** page for owned releases, including standard Blu-rays and 4K discs. Import a public blu-ray.com collection link; matching wishlist releases are marked as owned, and regular Blu-rays stay out of price scans.
 - **Add titles** by searching blu-ray.com or pasting a 4K blu-ray.com URL. Pick the exact edition you want (e.g. the JB Hi-Fi SteelBook vs the standard release).
-- Prices are checked automatically every 12 h (configurable), and you can check manually: every title, only the titles you tick on the wishlist (“Check selected”), or one title (“Check now”).
+- Prices and the CeX catalogue refresh automatically every day at 05:00 Australia/Sydney. You can also check prices manually: every title, only the titles you tick on the wishlist (“Check selected”), or one title (“Check now”).
+- **CeX** page compares in-stock 4K wishlist matches with retailer prices, includes Blacktown/Rouse Hill availability, tracks newly observed stock and price changes, and shows CeX cash/voucher offers of at least $3 for owned standard Blu-rays. CeX prices and trade-in offers can change after inspection. CeX advertises free delivery on orders over $50; under that amount the delivery charge is set at checkout and is not estimated.
+- CeX does not expose a stock-added timestamp. “First observed” means the tracker first detected a product, not that CeX added it on that date. The daily refresh scans the full CeX 4K catalogue and checks owned standard Blu-rays for buyback values.
 - Per-store controls: “Wrong match” (exclude and re-search), pick another result, or pin an exact product URL.
 - eBay price checking is currently paused because its bot protection makes scans unreliable. Existing eBay price-history data is retained.
 - Each title has an edition match mode (title page → Tracking options):
@@ -29,7 +32,7 @@ A self-hosted wishlist for 4K Ultra HD Blu-rays. It tracks the cheapest **delive
   - Listings found by barcode show a "UPC match" badge.
   - Store titles that name a different year (e.g. *Point Break (2015)* when tracking the 1991 film) are rejected.
 - Amazon verifies the 4K variant on the product page before saving its price.
-- A running price check can be cancelled from the header. Queued checks are dropped immediately; the running check stops after the store it is currently checking, and prices already fetched are kept.
+- A running check can be cancelled from the header. Queued checks are dropped immediately; the running task stops after its current store or CeX request, and prices already fetched are kept.
 - Store prices show item price plus nonzero postage in parentheses; “Best” remains the delivered total. Price-history chart, lowest-ever price and target price.
 - **Alerts** via [Apprise](https://github.com/caronc/apprise/wiki) (ntfy, Discord, Telegram, email, Teams, Pushover…) when a title hits your target or a new low.
 - CSV export.
@@ -49,7 +52,8 @@ Data (SQLite) lives in `./data`, so back that folder up.
 ### Configuration (environment variables)
 | Variable | Default | |
 |---|---|---|
-| `CHECK_INTERVAL_HOURS` | `12` | `0` disables scheduled checks |
+| `SCHEDULED_CHECKS` | `true` | enables the daily 05:00 Australia/Sydney refresh; set `false` to disable |
+| `CHECK_INTERVAL_HOURS` | `12` | legacy compatibility, only used if `SCHEDULED_CHECKS` is unset: `0` disables; positive values enable the daily 05:00 schedule |
 | `REQUEST_DELAY` | `2.5` | seconds between requests to the same site |
 | `APPRISE_URLS` | – | comma-separated; can also be set in Settings |
 | `BASE_URL` | – | e.g. `http://nas:8000`, used for links in alerts |
