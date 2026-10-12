@@ -214,7 +214,7 @@ def check_store(session, title: Title, store: str) -> Listing:
     return listing
 
 
-def update_best(session, title: Title) -> None:
+def update_best(session, title: Title, *, notify_user: bool = True) -> None:
     listings = session.exec(select(Listing).where(Listing.title_id == title.id)).all()
     best, best_total = None, None
     for l in listings:
@@ -229,7 +229,8 @@ def update_best(session, title: Title) -> None:
     title.best_url = best.url if best else None
     if best_total is not None and (title.lowest_ever is None or best_total < title.lowest_ever):
         title.lowest_ever = best_total
-    _maybe_notify(title, best, best_total, prev_low)
+    if notify_user:
+        _maybe_notify(title, best, best_total, prev_low)
 
 
 def _maybe_notify(title: Title, best: Listing | None, total: float | None, prev_low: float | None):

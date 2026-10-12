@@ -28,7 +28,8 @@ FILTER_4K = (
 )
 BRANCHES = ("Blacktown", "Rouse Hill")
 TRADE_IN_MINIMUM = 3.0
-FREE_DELIVERY_OVER = 50.0
+FREE_DELIVERY_ITEM_OVER = config.CEX_FREE_DELIVERY_ITEM_OVER
+DELIVERY_PER_ITEM = config.CEX_DELIVERY_PER_ITEM
 _RATING_RE = re.compile(r"\(\s*(?:G|PG|M|MA15\+|R18\+|R13\+|R)\s*\)", re.I)
 
 
@@ -385,14 +386,20 @@ def page_data() -> dict:
             match = matches.get(f"wishlist:{title.id}")
             product = products.get(match.box_id) if match else None
             branches = json.loads(product.branch_stock_json or "{}") if product else {}
-            online_delivered = (
-                product.sell_price
-                if product and product.sell_price and product.sell_price > FREE_DELIVERY_OVER
+            online_postage = (
+                0.0 if product and product.sell_price is not None
+                and product.sell_price > FREE_DELIVERY_ITEM_OVER
+                else DELIVERY_PER_ITEM if product and product.sell_price is not None
                 else None
+            )
+            online_delivered = (
+                product.sell_price + online_postage
+                if product and product.online_stock and product.sell_price is not None
+                and online_postage is not None else None
             )
             wanted_by_id[title.id] = {
                 "title": title, "product": product, "branches": branches,
-                "online_delivered": online_delivered,
+                "online_delivered": online_delivered, "online_postage": online_postage,
                 "match_score": match.match_score if match else None,
                 "competitive": bool(
                     product and match and match.match_score >= 80 and product.sell_price is not None and

@@ -20,7 +20,7 @@ A self-hosted wishlist for 4K Ultra HD Blu-rays. It tracks the cheapest **delive
 - **Collection** page for owned releases, including standard Blu-rays and 4K discs. Import a public blu-ray.com collection link; matching wishlist releases are marked as owned, and regular Blu-rays stay out of price scans.
 - **Add titles** by searching blu-ray.com or pasting a 4K blu-ray.com URL. Pick the exact edition you want (e.g. the JB Hi-Fi SteelBook vs the standard release).
 - Prices and the CeX catalogue refresh automatically every day at 05:00 Australia/Sydney. You can also check prices manually: every title, only the titles you tick on the wishlist (“Check selected”), or one title (“Check now”).
-- **CeX** page compares in-stock 4K wishlist matches with retailer prices, includes Blacktown/Rouse Hill availability, tracks newly observed stock and price changes, and shows CeX cash/voucher offers of at least $3 for owned standard Blu-rays. CeX prices and trade-in offers can change after inspection. CeX advertises free delivery on orders over $50; under that amount the delivery charge is set at checkout and is not estimated.
+- **CeX** page compares in-stock 4K wishlist matches with retailer prices, includes Blacktown/Rouse Hill availability, tracks newly observed stock and price changes, and shows CeX cash/voucher offers of at least $3 for owned standard Blu-rays. CeX prices and trade-in offers can change after inspection. Online delivery is charged per item: $4 for items priced at or below $50, and free for an individual item priced over $50.
 - CeX does not expose a stock-added timestamp. “First observed” means the tracker first detected a product, not that CeX added it on that date. The daily refresh scans the full CeX 4K catalogue and checks owned standard Blu-rays for buyback values.
 - Per-store controls: “Wrong match” (exclude and re-search), pick another result, or pin an exact product URL.
 - eBay price checking is currently paused because its bot protection makes scans unreliable. Existing eBay price-history data is retained.
@@ -33,7 +33,7 @@ A self-hosted wishlist for 4K Ultra HD Blu-rays. It tracks the cheapest **delive
   - Store titles that name a different year (e.g. *Point Break (2015)* when tracking the 1991 film) are rejected.
 - Amazon verifies the 4K variant on the product page before saving its price.
 - A running check can be cancelled from the header. Queued checks are dropped immediately; the running task stops after its current store or CeX request, and prices already fetched are kept.
-- Store prices show item price plus nonzero postage in parentheses; “Best” remains the delivered total. CeX pickup and online orders over $50 have known delivery; cheaper online-only offers show the item price but do not count as a delivered Best until checkout postage is known. Price-history chart, lowest-ever price and target price.
+- Store prices show item price plus nonzero postage in parentheses; “Best” remains the delivered total. CeX pickup has no shipping charge; online items priced at or below $50 add $4 each, while items over $50 ship free. Price-history chart, lowest-ever price and target price.
 - **Alerts** via [Apprise](https://github.com/caronc/apprise/wiki) (ntfy, Discord, Telegram, email, Teams, Pushover…) when a title hits your target or a new low.
 - CSV export.
 - **Bargains** page showing the ten cheapest in-stock 4K titles discovered in each enabled retailer catalogue (not limited to the wishlist).

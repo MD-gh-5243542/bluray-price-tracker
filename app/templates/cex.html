@@ -16,7 +16,7 @@
 <p class="muted small">
   {% if last_sync %}Last refreshed {{ last_sync|local }}{% else %}CeX data has not been refreshed yet{% endif %}
   · {{ catalogue_count }} 4K catalogue items cached
-  · Free delivery applies to CeX baskets over $50; an item at or below $50 may qualify when bundled with other items.
+  · Delivery is charged per item: $4 for items at or below $50; items over $50 ship free.
 </p>
 {% if stale %}<div class="alert warn">{% if last_sync %}CeX data may be stale; the last successful refresh was {{ last_sync|local }}.{% else %}CeX data has not been refreshed yet. Use “Refresh CeX data” to populate this page.{% endif %}</div>{% endif %}
 
@@ -36,8 +36,10 @@
       <td class="num">
         {% if row.product %}
           {{ row.product.sell_price|money }}
-          {% if row.product.online_stock %}
-            <div class="muted small">{% if row.online_delivered %}online, free delivery{% else %}online, postage at checkout{% endif %}</div>
+          {% if row.product.online_stock and row.online_delivered is not none %}
+            <div class="muted small">online{% if row.online_postage %}, +{{ row.online_postage|money }} delivery{% else %}, free delivery{% endif %} ({{ row.online_delivered|money }} delivered)</div>
+          {% elif row.product.online_stock %}
+            <div class="muted small">online, delivery price unavailable</div>
           {% else %}<div class="muted small">not online</div>{% endif %}
         {% endif %}
       </td>

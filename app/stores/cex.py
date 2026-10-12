@@ -43,10 +43,15 @@ def _offer(q: Query | None, hit: dict) -> Offer | None:
     local_stock = any(branches.get(store) is True for store in catalogue.BRANCHES)
     online_stock = product["online_stock"] is True
     in_stock = local_stock or online_stock
-    delivery_unknown = (online_stock and not local_stock and price is not None
-                        and price <= catalogue.FREE_DELIVERY_OVER)
-    shipping = 0.0 if local_stock or (online_stock and price is not None
-                                     and price > catalogue.FREE_DELIVERY_OVER) else None
+    if local_stock:
+        shipping = 0.0
+    elif online_stock and price is not None:
+        shipping = (
+            catalogue.DELIVERY_PER_ITEM
+            if price <= catalogue.FREE_DELIVERY_ITEM_OVER else 0.0
+        )
+    else:
+        shipping = None
     return Offer(
         store=STORE,
         url=catalogue._box_url(product["box_id"], product["category"]),
@@ -57,7 +62,6 @@ def _offer(q: Query | None, hit: dict) -> Offer | None:
         image=product["image"],
         score=score,
         by_barcode=barcode_match,
-        delivery_unknown=delivery_unknown,
     )
 
 
@@ -125,11 +129,15 @@ def bargains() -> list[Offer]:
         branches = json.loads(product.branch_stock_json or "{}")
         local_stock = any(branches.get(store) is True for store in catalogue.BRANCHES)
         online_stock = product.online_stock is True
-        if not local_stock and not (online_stock and product.sell_price > catalogue.FREE_DELIVERY_OVER):
+        if not local_stock and not online_stock:
             continue
+        shipping = (
+            0.0 if local_stock or product.sell_price > catalogue.FREE_DELIVERY_ITEM_OVER
+            else catalogue.DELIVERY_PER_ITEM
+        )
         offers.append(Offer(
             store=STORE, url=product.url or catalogue._box_url(product.box_id, product.category),
-            title=product.name, price=product.sell_price, shipping=0.0,
+            title=product.name, price=product.sell_price, shipping=shipping,
             in_stock=True, image=product.image,
         ))
     return sorted(offers, key=lambda offer: offer.price or float("inf"))[:10]

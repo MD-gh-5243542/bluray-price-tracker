@@ -1,10 +1,11 @@
+import json
 from datetime import date, datetime
 from typing import Optional
 
 from sqlalchemy import event
 from sqlmodel import Field, Session, SQLModel, create_engine, select
 
-from .config import DB_PATH
+from .config import CEX_DELIVERY_PER_ITEM, CEX_FREE_DELIVERY_ITEM_OVER, DB_PATH
 
 STORES = ["amazon", "ezydvd", "jbhifi", "umbrella", "dvdhub", "sanity", "rarewaves", "cex"]
 class _StoreNames(dict):
@@ -252,6 +253,49 @@ def init_db() -> None:
                 setting.value = ",".join(store for store in enabled if store in STORES)
             session.add(Setting(key=add_cex_key, value="1"))
             session.commit()
+
+        cex_shipping_key = "cex_per_item_shipping_v1"
+        if session.get(Setting, cex_shipping_key) is None:
+            affected_title_ids = set()
+            for listing in session.exec(select(Listing).where(Listing.store == "cex")).all():
+                if listing.delivery_unknown:
+                    listing.shipping = (
+                        CEX_DELIVERY_PER_ITEM if listing.price is not None
+                        and listing.price <= CEX_FREE_DELIVERY_ITEM_OVER else 0.0
+                    )
+                    listing.delivery_unknown = False
+                    affected_title_ids.add(listing.title_id)
+                if listing.candidates_json:
+                    try:
+                        candidates = json.loads(listing.candidates_json)
+                    except json.JSONDecodeError:
+                        candidates = None
+                    if isinstance(candidates, list):
+                        changed = False
+                        for candidate in candidates:
+                            if not isinstance(candidate, dict) or not candidate.get("delivery_unknown"):
+                                continue
+                            price = candidate.get("price")
+                            if isinstance(price, (int, float)):
+                                candidate["shipping"] = (
+                                    CEX_DELIVERY_PER_ITEM if price <= CEX_FREE_DELIVERY_ITEM_OVER else 0.0
+                                )
+                            candidate["delivery_unknown"] = False
+                            changed = True
+                        if changed:
+                            listing.candidates_json = json.dumps(candidates)
+                session.add(listing)
+            session.add(Setting(key=cex_shipping_key, value="1"))
+            session.commit()
+            if affected_title_ids:
+                from .tracker import update_best
+
+                for title_id in affected_title_ids:
+                    title = session.get(Title, title_id)
+                    if title:
+                        update_best(session, title, notify_user=False)
+                        session.add(title)
+                session.commit()
 
 
 def get_session() -> Session:

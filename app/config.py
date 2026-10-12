@@ -57,6 +57,8 @@ FREE_SHIPPING_OVER = {
     "sanity": float(os.getenv("FREE_SHIPPING_OVER_SANITY", "120")),
     "rarewaves": float(os.getenv("FREE_SHIPPING_OVER_RAREWAVES", "0")),
 }
+CEX_FREE_DELIVERY_ITEM_OVER = 50.0
+CEX_DELIVERY_PER_ITEM = 4.0
 
 # Default blu-ray.com country used when searching for new titles.
 BLURAY_COUNTRY = os.getenv("BLURAY_COUNTRY", "AU")
