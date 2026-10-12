@@ -310,7 +310,7 @@ def _history_svg(points: list[PricePoint], width=720, height=220) -> str:
         return ""
     colours = {"amazon": "#ff9900", "ezydvd": "#e4002b", "ebay": "#0064d2",
                "jbhifi": "#e31837", "umbrella": "#6a9f58", "dvdhub": "#b58900",
-               "sanity": "#00a4a7", "rarewaves": "#d65a31"}
+               "sanity": "#00a4a7", "rarewaves": "#d65a31", "cex": "#18a1a1"}
     xs = [p.checked_at.timestamp() for p in points]
     ys = [p.total for p in points]
     x0, x1 = min(xs), max(xs)
@@ -369,6 +369,7 @@ def title_page(request: Request, tid: int, q: str = ""):
     for st, offers in cands.items():
         for offer in offers:
             offer["postage"] = shipping_for(st, offer.get("price"), offer.get("shipping"))
+            offer["delivery_unknown"] = bool(offer.get("delivery_unknown"))
     ship = {st: shipping_for(st, l.price, l.shipping) for st, l in ls.items()}
     totals = {st: total_for(l) for st, l in ls.items()}
     search_results, editions = [], []
@@ -539,6 +540,7 @@ def listing_reject(tid: int, store: str):
         l.price = None
         l.shipping = None
         l.in_stock = None
+        l.delivery_unknown = False
         l.condition = None
         l.match_score = None
         l.by_barcode = False
@@ -589,6 +591,7 @@ def listing_pin(tid: int, store: str, url: str = Form(...)):
         l.shipping = picked.get("shipping") if picked else None
         l.in_stock = picked.get("in_stock") if picked else None
         l.by_barcode = bool(picked.get("by_barcode")) if picked else False
+        l.delivery_unknown = bool(picked.get("delivery_unknown")) if picked else False
         s.add(l)
         # Un-exclude it if the user explicitly picked it.
         for e in s.exec(select(ExcludedUrl).where(

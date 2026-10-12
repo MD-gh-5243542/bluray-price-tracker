@@ -11,7 +11,7 @@ A self-hosted wishlist for 4K Ultra HD Blu-rays. It tracks the cheapest **delive
 | DVD Hub | Shopify product search + variant data |
 | Sanity | Unbxd product search + JSON-LD product data |
 | Rarewaves | Shopify product search + variant data |
-| CeX AU | Public product search feed for 4K stock, branch availability and buyback values |
+| CeX AU | Public product search feed for 4K stock, branch availability and buyback values; also a main-wishlist retailer |
 
 **[blu-ray.com](https://www.blu-ray.com) is the source of truth** for each title: edition, country, barcode, release date and cover art. Only 4K releases are imported, added, and tracked. Store listings are matched against that release using the barcode where possible, then by fuzzy title matching with 4K, SteelBook and box-set guards.
 
@@ -33,7 +33,7 @@ A self-hosted wishlist for 4K Ultra HD Blu-rays. It tracks the cheapest **delive
   - Store titles that name a different year (e.g. *Point Break (2015)* when tracking the 1991 film) are rejected.
 - Amazon verifies the 4K variant on the product page before saving its price.
 - A running check can be cancelled from the header. Queued checks are dropped immediately; the running task stops after its current store or CeX request, and prices already fetched are kept.
-- Store prices show item price plus nonzero postage in parentheses; “Best” remains the delivered total. Price-history chart, lowest-ever price and target price.
+- Store prices show item price plus nonzero postage in parentheses; “Best” remains the delivered total. CeX pickup and online orders over $50 have known delivery; cheaper online-only offers show the item price but do not count as a delivered Best until checkout postage is known. Price-history chart, lowest-ever price and target price.
 - **Alerts** via [Apprise](https://github.com/caronc/apprise/wiki) (ntfy, Discord, Telegram, email, Teams, Pushover…) when a title hits your target or a new low.
 - CSV export.
 - **Bargains** page showing the ten cheapest in-stock 4K titles discovered in each enabled retailer catalogue (not limited to the wishlist).

@@ -3,7 +3,7 @@ import json
 import logging
 import threading
 from datetime import datetime
-from urllib.parse import urlsplit
+from urllib.parse import parse_qs, urlsplit
 
 from . import config, notify
 from .db import (STORE_NAMES, ExcludedUrl, Listing, PricePoint, Title, enabled_stores,
@@ -40,12 +40,16 @@ def shipping_for(store: str, price: float | None, listed: float | None) -> float
 
 
 def total_for(listing: Listing) -> float | None:
-    if listing.price is None:
+    if listing.price is None or listing.delivery_unknown:
         return None
     return round(listing.price + shipping_for(listing.store, listing.price, listing.shipping), 2)
 
 
 def match_key(store: str, url: str) -> str:
+    if store == "cex":
+        box_id = parse_qs(urlsplit(url).query).get("id", [""])[0]
+        if box_id:
+            return f"cex:{box_id}"
     if store in _SHOPIFY_STORES:
         path = urlsplit(url).path.rstrip("/").lower()
         if "/products/" in path:
@@ -61,7 +65,11 @@ def _choose(store: str, offers: list[Offer], any_edition: bool = False) -> tuple
     strong = [o for o in plausible if o.score >= AUTO_ACCEPT]
     pool = strong or plausible
     priced = [o for o in pool if o.price is not None and o.in_stock]
-    if store == "ebay" or (any_edition and strong):
+    if store == "cex":
+        known_delivery = [o for o in priced if not o.delivery_unknown]
+        preferred = known_delivery or priced
+        pick = min(preferred, key=lambda o: o.price + (o.shipping or 0)) if preferred else pool[0]
+    elif store == "ebay" or (any_edition and strong):
         # Any confident match is acceptable: take the cheapest delivered price.
         pick = min(priced, key=lambda o: o.price + (o.shipping or 0)) if priced else pool[0]
     else:
@@ -75,7 +83,7 @@ def _cands_json(cands: list[Offer]) -> str:
     return json.dumps([
         {"url": o.url, "title": o.title, "price": o.price, "shipping": o.shipping,
          "in_stock": o.in_stock, "score": round(o.score, 1), "image": o.image,
-         "by_barcode": o.by_barcode}
+         "by_barcode": o.by_barcode, "delivery_unknown": o.delivery_unknown}
         for o in cands
     ])
 
@@ -188,10 +196,12 @@ def check_store(session, title: Title, store: str) -> Listing:
         listing.condition = offer.condition
         listing.match_score = offer.score
         listing.by_barcode = offer.by_barcode
-        if offer.price is not None:
+        listing.delivery_unknown = offer.delivery_unknown
+        total = total_for(listing)
+        if offer.price is not None and total is not None:
             session.add(PricePoint(
                 title_id=title.id, store=store, price=offer.price,
-                total=total_for(listing) or offer.price, in_stock=offer.in_stock, url=offer.url))
+                total=total, in_stock=offer.in_stock, url=offer.url))
     elif listing.status == "not_found":
         listing.url = listing.url if listing.pinned else None
         listing.price = None
@@ -199,6 +209,7 @@ def check_store(session, title: Title, store: str) -> Listing:
         listing.in_stock = None
         listing.match_score = None
         listing.by_barcode = False
+        listing.delivery_unknown = False
     session.add(listing)
     return listing
 

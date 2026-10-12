@@ -17,6 +17,7 @@ class Offer:
     condition: str | None = None
     score: float = 0.0
     by_barcode: bool = False
+    delivery_unknown: bool = False
 
 
 MATCH_MODES = {

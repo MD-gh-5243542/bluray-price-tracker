@@ -6,7 +6,7 @@ from sqlmodel import Field, Session, SQLModel, create_engine, select
 
 from .config import DB_PATH
 
-STORES = ["amazon", "ezydvd", "jbhifi", "umbrella", "dvdhub", "sanity", "rarewaves"]
+STORES = ["amazon", "ezydvd", "jbhifi", "umbrella", "dvdhub", "sanity", "rarewaves", "cex"]
 class _StoreNames(dict):
     # Historical rows may reference retired stores (e.g. Zavvi).
     def __missing__(self, key):
@@ -22,6 +22,7 @@ STORE_NAMES = _StoreNames({
     "dvdhub": "DVD Hub",
     "sanity": "Sanity",
     "rarewaves": "Rarewaves",
+    "cex": "CeX AU",
 })
 
 
@@ -88,6 +89,7 @@ class Listing(SQLModel, table=True):
     checked_at: Optional[datetime] = None
     # JSON list of other plausible matches the user can pick from
     candidates_json: Optional[str] = None
+    delivery_unknown: bool = False
 
 
 class ExcludedUrl(SQLModel, table=True):
@@ -172,6 +174,7 @@ _NEW_COLUMNS = {
     },
     "listing": {
         "by_barcode": "BOOLEAN NOT NULL DEFAULT 0",
+        "delivery_unknown": "BOOLEAN NOT NULL DEFAULT 0",
     },
 }
 
@@ -237,6 +240,17 @@ def init_db() -> None:
                 title.best_url = None
                 session.add(title)
             session.add(Setting(key=remove_ebay_key, value="1"))
+            session.commit()
+
+        add_cex_key = "enabled_stores_cex_v1"
+        if session.get(Setting, add_cex_key) is None:
+            setting = session.get(Setting, "enabled_stores")
+            if setting:
+                enabled = setting.value.split(",")
+                if "cex" not in enabled:
+                    enabled.append("cex")
+                setting.value = ",".join(store for store in enabled if store in STORES)
+            session.add(Setting(key=add_cex_key, value="1"))
             session.commit()
 
 
