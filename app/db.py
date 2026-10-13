@@ -130,6 +130,13 @@ class CexProduct(SQLModel, table=True):
     last_seen: datetime = Field(default_factory=datetime.utcnow, index=True)
 
 
+class CexFavourite(SQLModel, table=True):
+    box_id: str = Field(primary_key=True)
+    url: str
+    added_at: datetime = Field(default_factory=datetime.utcnow)
+    checked_at: Optional[datetime] = None
+
+
 class CexEvent(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     box_id: str = Field(index=True)
@@ -324,7 +331,7 @@ def enabled_stores() -> list[str]:
 
 
 __all__ = [
-    "Title", "Listing", "ExcludedUrl", "PricePoint", "CexProduct", "CexEvent",
+    "Title", "Listing", "ExcludedUrl", "PricePoint", "CexProduct", "CexFavourite", "CexEvent",
     "CexTitleMatch", "Setting", "engine",
     "init_db", "get_session", "get_setting", "set_setting", "enabled_stores",
     "STORES", "STORE_NAMES", "select",

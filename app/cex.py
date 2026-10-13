@@ -2,19 +2,22 @@
 import json
 import re
 from datetime import datetime, timedelta
-from urllib.parse import urlencode
+from urllib.parse import parse_qs, urlencode, urlsplit
 
 import httpx
 from sqlmodel import select
 
 from . import config
-from .db import CexEvent, CexProduct, CexTitleMatch, Title, get_session
+from .db import CexEvent, CexFavourite, CexProduct, CexTitleMatch, Title, get_session
 from .matching import REVIEW, score, score_barcode
 
 ALGOLIA_URL = (
     "https://search.webuy.io/1/indexes/prod_cex_au/query"
     "?x-algolia-application-id=LNNFEEWZVA"
     "&x-algolia-api-key=bf79f2b6699e60a18ae330a1248b452c"
+)
+ALGOLIA_BATCH_URL = ALGOLIA_URL.replace(
+    "/indexes/prod_cex_au/query", "/indexes/*/queries",
 )
 ATTRIBUTES = [
     "boxId", "boxName", "categoryName", "categoryFriendlyName", "productLineName",
@@ -31,6 +34,7 @@ TRADE_IN_MINIMUM = 3.0
 FREE_DELIVERY_ITEM_OVER = config.CEX_FREE_DELIVERY_ITEM_OVER
 DELIVERY_PER_ITEM = config.CEX_DELIVERY_PER_ITEM
 _RATING_RE = re.compile(r"\(\s*(?:G|PG|M|MA15\+|R18\+|R13\+|R)\s*\)", re.I)
+_BOX_ID_RE = re.compile(r"[A-Za-z0-9_-]{1,64}\Z")
 
 
 def _barcodes(title: Title) -> set[str]:
@@ -63,6 +67,41 @@ def _box_url(box_id: str, category: str) -> str:
     return "https://au.webuy.com/product-detail?" + urlencode({
         "id": box_id, "categoryName": category_slug, "superCatName": "FILM-TV",
     })
+
+
+def parse_favourite_links(text: str) -> dict[str, str]:
+    """Validate pasted CeX product links and return their product IDs and URLs."""
+    if len(text) > 200_000:
+        raise ValueError("Paste up to 1,000 CeX product links at a time.")
+    tokens = [token for token in re.split(r"[\s,;]+", text.strip()) if token]
+    if not tokens:
+        raise ValueError("Paste CeX product links, one per line.")
+
+    links: dict[str, str] = {}
+    for token in tokens:
+        if token.lower().startswith(("au.webuy.com/", "www.au.webuy.com/")):
+            token = f"https://{token}"
+        parts = urlsplit(token)
+        if parts.scheme or parts.netloc:
+            if (parts.scheme.lower() not in ("http", "https")
+                    or (parts.hostname or "").lower() not in ("au.webuy.com", "www.au.webuy.com")
+                    or parts.path.rstrip("/") != "/product-detail"):
+                raise ValueError("Only CeX AU product-detail links are supported; paste individual product links.")
+            ids = parse_qs(parts.query).get("id", [])
+            if len(ids) != 1:
+                raise ValueError(f"CeX product link is missing a valid product ID: {token}")
+            box_id = ids[0]
+            url = token
+        else:
+            box_id = token
+            url = f"https://au.webuy.com/product-detail?id={box_id}"
+        if not _BOX_ID_RE.fullmatch(box_id):
+            raise ValueError(f"Invalid CeX product ID: {box_id}")
+        links[box_id] = url
+
+    if len(links) > 1_000:
+        raise ValueError("Paste no more than 1,000 distinct CeX product links at a time.")
+    return links
 
 
 def _normalise_hit(hit: dict) -> dict:
@@ -108,6 +147,26 @@ def _query(client: httpx.Client, query: str, *, filters: str, page: int = 0,
     if not isinstance(payload.get("hits"), list):
         raise RuntimeError("CeX search returned an unexpected response")
     return payload
+
+
+def _query_many(client: httpx.Client, queries: list[str]) -> list[dict]:
+    requests = [{
+        "indexName": "prod_cex_au",
+        "params": urlencode({
+            "query": query,
+            "hitsPerPage": 10,
+            "attributesToRetrieve": ",".join(ATTRIBUTES),
+        }),
+    } for query in queries]
+    response = client.post(ALGOLIA_BATCH_URL, json={"requests": requests})
+    response.raise_for_status()
+    results = response.json().get("results")
+    if not isinstance(results, list) or len(results) != len(queries):
+        raise RuntimeError("CeX favourites search returned an unexpected response")
+    if any(not isinstance(result, dict) or not isinstance(result.get("hits"), list)
+           for result in results):
+        raise RuntimeError("CeX favourites search returned an unexpected response")
+    return results
 
 
 def _catalogue(client: httpx.Client, progress=None) -> list[dict]:
@@ -342,17 +401,52 @@ def _match_collection_titles(client: httpx.Client, progress=None) -> None:
             session.commit()
 
 
+def _favourite_products(client: httpx.Client, progress=None) -> list[dict]:
+    with get_session() as session:
+        favourite_ids = [item.box_id for item in session.exec(
+            select(CexFavourite).order_by(CexFavourite.added_at)
+        ).all()]
+    products = []
+    checked_ids = []
+    for start in range(0, len(favourite_ids), 50):
+        _raise_if_cancelled()
+        box_ids = favourite_ids[start:start + 50]
+        if progress:
+            progress(
+                f"Refreshing CeX favourites {start + 1}-{start + len(box_ids)} "
+                f"of {len(favourite_ids)}"
+            )
+        results = _query_many(client, box_ids)
+        for box_id, payload in zip(box_ids, results):
+            checked_ids.append(box_id)
+            hit = next((item for item in payload["hits"]
+                        if str(item.get("boxId") or item.get("objectID") or "") == box_id), None)
+            if hit:
+                product = _normalise_hit(hit)
+                if product["name"]:
+                    products.append(product)
+    with get_session() as session:
+        for box_id in checked_ids:
+            favourite = session.get(CexFavourite, box_id)
+            if favourite:
+                favourite.checked_at = datetime.utcnow()
+                session.add(favourite)
+        session.commit()
+    return products
+
+
 def sync(progress=None) -> None:
-    """Refresh all CeX 4K inventory plus owned standard Blu-ray buyback values."""
+    """Refresh CeX 4K inventory, favourites, and owned standard Blu-ray buyback values."""
     timeout = httpx.Timeout(30.0, connect=10.0)
     headers = {"user-agent": config.USER_AGENT, "accept": "application/json"}
     with httpx.Client(timeout=timeout, headers=headers) as client:
         if progress:
             progress("Loading CeX 4K catalogue")
         products = _catalogue(client, progress)
+        favourite_products = _favourite_products(client, progress)
         with get_session() as session:
             baseline = session.exec(select(CexProduct.id)).first() is None
-        _record_products(products, baseline=baseline)
+        _record_products(products + favourite_products, baseline=baseline)
         _match_collection_titles(client, progress)
     _refresh_title_matches()
     with get_session() as session:
@@ -367,6 +461,9 @@ def page_data() -> dict:
     with get_session() as session:
         titles = session.exec(select(Title)).all()
         all_products = {item.box_id: item for item in session.exec(select(CexProduct)).all()}
+        favourites = session.exec(
+            select(CexFavourite).order_by(CexFavourite.added_at.desc())
+        ).all()
         matches = {item.key: item for item in session.exec(select(CexTitleMatch)).all()}
         events = session.exec(
             select(CexEvent).where(CexEvent.event_type != "sync")
@@ -379,6 +476,26 @@ def page_data() -> dict:
     fresh_after = datetime.utcnow() - timedelta(hours=48)
     products = {box_id: product for box_id, product in all_products.items()
                 if product.last_seen >= fresh_after}
+    favourite_rows = []
+    for favourite in favourites:
+        product = all_products.get(favourite.box_id)
+        favourite_rows.append({
+            "box_id": favourite.box_id,
+            "url": product.url if product and product.url else favourite.url,
+            "product": product,
+            "stale": not product or product.last_seen < fresh_after,
+            "not_found": bool(
+                favourite.checked_at
+                and (not product or product.last_seen < favourite.checked_at)
+            ),
+            "branches": (
+                json.loads(product.branch_stock_json)
+                if product and product.branch_stock_json else None
+            ),
+        })
+    favourite_rows.sort(key=lambda row: (
+        (row["product"].name if row["product"] else row["box_id"]).lower()
+    ))
     wanted_by_id = {}
     owned = []
     for title in titles:
@@ -445,6 +562,7 @@ def page_data() -> dict:
             change = "Availability changed"
         event_rows.append({"event": event, "product": product, "change": change})
     return {
+        "favourites": favourite_rows,
         "wanted": wanted,
         "owned": owned,
         "events": event_rows,

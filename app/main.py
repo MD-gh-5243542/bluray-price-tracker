@@ -5,7 +5,7 @@ import logging
 from contextlib import asynccontextmanager
 from datetime import date, datetime
 from pathlib import Path
-from urllib.parse import urlsplit
+from urllib.parse import quote_plus, urlsplit
 from zoneinfo import ZoneInfo
 
 from fastapi import FastAPI, Form, HTTPException, Request
@@ -16,7 +16,7 @@ from fastapi.templating import Jinja2Templates
 from . import bluray, cex, collection_importer, config, jobs, notify
 from .stores import MODULES
 from .stores.base import MATCH_MODES, parse_upcs
-from .db import (STORE_NAMES, STORES, CexTitleMatch, ExcludedUrl, Listing, PricePoint, Title,
+from .db import (STORE_NAMES, STORES, CexFavourite, CexTitleMatch, ExcludedUrl, Listing, PricePoint, Title,
                  enabled_stores, get_session, get_setting, init_db, select, set_setting)
 from .tracker import match_key, shipping_for, total_for, update_best
 
@@ -223,14 +223,51 @@ def collection_page(request: Request, q: str = "", sort: str = "name"):
 
 
 @app.get("/cex", response_class=HTMLResponse)
-def cex_page(request: Request):
-    return render(request, "cex.html", **cex.page_data())
+def cex_page(request: Request, msg: str = "", msg_type: str = "ok"):
+    return render(request, "cex.html", **cex.page_data(), msg=msg, msg_type=msg_type)
 
 
 @app.post("/cex/refresh")
 def cex_refresh():
     jobs.queue_cex_refresh()
     return back("/cex")
+
+
+@app.post("/cex/favourites/import")
+def cex_favourites_import(links: str = Form(...)):
+    try:
+        parsed = cex.parse_favourite_links(links)
+    except ValueError as exc:
+        return back(f"/cex?msg={quote_plus(str(exc))}&msg_type=error")
+
+    added = 0
+    with get_session() as session:
+        for box_id, url in parsed.items():
+            favourite = session.get(CexFavourite, box_id)
+            if favourite:
+                favourite.url = url
+            else:
+                session.add(CexFavourite(box_id=box_id, url=url))
+                added += 1
+        session.commit()
+    if added:
+        jobs.queue_cex_refresh()
+    message = (
+        f"Added {added} CeX favourite{'s' if added != 1 else ''}; refresh queued."
+        if added else "Those CeX favourites are already imported."
+    )
+    return back(f"/cex?msg={quote_plus(message)}")
+
+
+@app.post("/cex/favourites/{box_id}/remove")
+def cex_favourite_remove(box_id: str):
+    with get_session() as session:
+        favourite = session.get(CexFavourite, box_id)
+        if not favourite:
+            raise HTTPException(404, "CeX favourite not found")
+        session.delete(favourite)
+        session.commit()
+    return back("/cex?msg=CeX+favourite+removed")
 
 
 @app.post("/collection/{tid}/remove")
