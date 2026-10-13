@@ -35,6 +35,22 @@ FREE_DELIVERY_ITEM_OVER = config.CEX_FREE_DELIVERY_ITEM_OVER
 DELIVERY_PER_ITEM = config.CEX_DELIVERY_PER_ITEM
 _RATING_RE = re.compile(r"\(\s*(?:G|PG|M|MA15\+|R18\+|R13\+|R)\s*\)", re.I)
 _BOX_ID_RE = re.compile(r"[A-Za-z0-9_-]{1,64}\Z")
+CEX_FAVOURITES_EXPORTER = (
+    "javascript:(async()=>{"
+    "const base=new URL(location.href);"
+    "if(base.hostname!=='au.webuy.com'||base.pathname!=='/user/account'||base.searchParams.get('tab')!=='favourites'){alert('Open your CeX favourites page first.');return}"
+    "const currentPage=Number(base.searchParams.get('page')||1)||1,links=new Map(),pageNumbers=new Set([currentPage]),missed=[];"
+    "for(const a of document.querySelectorAll('a[href]')){const u=new URL(a.getAttribute('href'),base);const p=Number(u.searchParams.get('page')||1);if(u.origin===base.origin&&u.pathname===base.pathname&&u.searchParams.get('tab')==='favourites'&&Number.isInteger(p)&&p>0&&p<=200)pageNumbers.add(p)}"
+    "const pages=[currentPage,...[...pageNumbers].filter(p=>p!==currentPage).sort((a,b)=>a-b)];let copiedPages=0;"
+    "for(const page of pages){let doc=document;const pageUrl=new URL(base);pageUrl.searchParams.set('page',page);"
+    "if(page!==currentPage){await new Promise(resolve=>setTimeout(resolve,200));let response;try{response=await fetch(pageUrl,{credentials:'include'})}catch{missed.push(page);continue}if(!response.ok||new URL(response.url).pathname!==base.pathname){missed.push(page);continue}doc=new DOMParser().parseFromString(await response.text(),'text/html')}"
+    "const found=[];for(const a of doc.querySelectorAll('a[href]')){const u=new URL(a.getAttribute('href'),pageUrl);if((u.hostname==='au.webuy.com'||u.hostname==='www.au.webuy.com')&&u.pathname==='/product-detail'&&u.searchParams.has('id'))found.push(u)}"
+    "if(!found.length){missed.push(page);continue}copiedPages++;for(const u of found)links.set(u.searchParams.get('id'),u.href)}"
+    "if(!links.size){alert('No product links found on this CeX favourites page.');return}"
+    "const text=[...links.values()].join('\\n');try{await navigator.clipboard.writeText(text)}catch{window.prompt('Copy these CeX product links, then paste them into the tracker:',text)}"
+    "alert('Copied '+links.size+' links from '+copiedPages+' of '+pages.length+' page(s).'+(missed.length?' For missed pages ('+missed.join(', ')+'), open each page and run the exporter again.':''))"
+    "})()"
+)
 
 
 def _barcodes(title: Title) -> set[str]:
@@ -562,6 +578,7 @@ def page_data() -> dict:
             change = "Availability changed"
         event_rows.append({"event": event, "product": product, "change": change})
     return {
+        "exporter_bookmarklet": CEX_FAVOURITES_EXPORTER,
         "favourites": favourite_rows,
         "wanted": wanted,
         "owned": owned,
