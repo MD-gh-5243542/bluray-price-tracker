@@ -176,6 +176,12 @@ def check_selected(ids: list[int] = Form([])):
 def delete_selected(ids: list[int] = Form([])):
     if ids:
         with get_session() as s:
+            for favourite in s.exec(
+                select(CexFavourite).where(CexFavourite.title_id.in_(ids))
+            ).all():
+                favourite.title_id = None
+                favourite.wishlist_excluded = True
+                s.add(favourite)
             for model in (Listing, PricePoint, ExcludedUrl, CexTitleMatch):
                 for row in s.exec(select(model).where(model.title_id.in_(ids))).all():
                     s.delete(row)
@@ -246,6 +252,7 @@ def cex_favourites_import(links: str = Form(...)):
             favourite = session.get(CexFavourite, box_id)
             if favourite:
                 favourite.url = url
+                favourite.wishlist_excluded = False
             else:
                 session.add(CexFavourite(box_id=box_id, url=url))
                 added += 1
@@ -268,6 +275,19 @@ def cex_favourite_remove(box_id: str):
         session.delete(favourite)
         session.commit()
     return back("/cex?msg=CeX+favourite+removed")
+
+
+@app.post("/cex/favourites/{box_id}/wishlist")
+def cex_favourite_add_to_wishlist(box_id: str):
+    with get_session() as session:
+        favourite = session.get(CexFavourite, box_id)
+        if not favourite:
+            raise HTTPException(404, "CeX favourite not found")
+        favourite.wishlist_excluded = False
+        session.add(favourite)
+        session.commit()
+    jobs.queue_cex_refresh()
+    return back("/cex?msg=CeX+favourite+queued+for+the+wishlist")
 
 
 @app.post("/collection/{tid}/remove")
@@ -402,6 +422,8 @@ def title_page(request: Request, tid: int, q: str = ""):
         pts = s.exec(select(PricePoint).where(PricePoint.title_id == tid)
                      .order_by(PricePoint.checked_at)).all()
         excluded = s.exec(select(ExcludedUrl).where(ExcludedUrl.title_id == tid)).all()
+    if not q and t.source == "cex" and t.needs_review and not t.bluray_url:
+        q = t.name
     cands = {st: json.loads(l.candidates_json) if l.candidates_json else [] for st, l in ls.items()}
     for st, offers in cands.items():
         for offer in offers:
@@ -501,6 +523,10 @@ def title_purchased(tid: int, value: str = Form("1")):
 def title_confirm(tid: int, next: str = Form("")):
     with get_session() as s:
         t = s.get(Title, tid)
+        if not t:
+            raise HTTPException(404)
+        if not t.bluray_url:
+            raise HTTPException(400, "Choose a blu-ray.com release before confirming this title")
         t.needs_review = False
         s.add(t)
         s.commit()
@@ -544,6 +570,12 @@ def title_delete(tid: int):
             for row in s.exec(select(model).where(model.title_id == tid)).all():
                 s.delete(row)
         t = s.get(Title, tid)
+        for favourite in s.exec(
+            select(CexFavourite).where(CexFavourite.title_id == tid)
+        ).all():
+            favourite.title_id = None
+            favourite.wishlist_excluded = True
+            s.add(favourite)
         if t:
             s.delete(t)
         s.commit()

@@ -49,7 +49,7 @@ class Title(SQLModel, table=True):
     region: Optional[str] = None
 
     # Wishlist bookkeeping
-    source: str = "manual"  # manual | amazon
+    source: str = "manual"  # manual | amazon | cex
     source_title: Optional[str] = None  # original title as seen at the source
     amazon_asin: Optional[str] = None
     search_terms: Optional[str] = None  # user override for store searches
@@ -135,6 +135,8 @@ class CexFavourite(SQLModel, table=True):
     url: str
     added_at: datetime = Field(default_factory=datetime.utcnow)
     checked_at: Optional[datetime] = None
+    title_id: Optional[int] = Field(default=None, foreign_key="title.id")
+    wishlist_excluded: bool = False
 
 
 class CexEvent(SQLModel, table=True):
@@ -183,6 +185,10 @@ _NEW_COLUMNS = {
     "listing": {
         "by_barcode": "BOOLEAN NOT NULL DEFAULT 0",
         "delivery_unknown": "BOOLEAN NOT NULL DEFAULT 0",
+    },
+    "cexfavourite": {
+        "title_id": "INTEGER REFERENCES title(id)",
+        "wishlist_excluded": "BOOLEAN NOT NULL DEFAULT 0",
     },
 }
 

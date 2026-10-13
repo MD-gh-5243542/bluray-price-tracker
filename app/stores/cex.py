@@ -16,19 +16,13 @@ STORE = "cex"
 _TIMEOUT = httpx.Timeout(20.0, connect=10.0)
 
 
-def _same_barcode(box_id: str, upc: str) -> bool:
-    if box_id == upc:
-        return True
-    if box_id.isdigit() and upc.isdigit():
-        return (box_id.lstrip("0") or "0") == (upc.lstrip("0") or "0")
-    return False
-
-
 def _offer(q: Query | None, hit: dict) -> Offer | None:
     product = catalogue._normalise_hit(hit)
     if not product["box_id"] or product["category"] != "Blu-Ray 4K":
         return None
-    barcode_match = q is not None and any(_same_barcode(product["box_id"], upc) for upc in q.upcs)
+    barcode_match = q is not None and any(
+        catalogue._same_barcode(product["box_id"], upc) for upc in q.upcs
+    )
     candidate = catalogue._match_candidate(product, True)
     score = (q.score_barcode(candidate) if barcode_match
              else q.score(candidate, loose=True) if q else 0.0)
@@ -75,7 +69,7 @@ def search(q: Query) -> list[Offer]:
             )
             for hit in payload["hits"]:
                 box_id = str(hit.get("boxId") or hit.get("objectID") or "")
-                if box_id and any(_same_barcode(box_id, upc) for upc in q.upcs):
+                if box_id and any(catalogue._same_barcode(box_id, upc) for upc in q.upcs):
                     hits[box_id] = hit
 
         if q.title_search_too:

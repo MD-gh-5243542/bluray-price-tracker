@@ -22,7 +22,7 @@
 {% if msg %}<div class="alert {{ msg_type }}">{{ msg }}</div>{% endif %}
 
 <h2>My CeX favourites</h2>
-<p class="muted small">Import a whole favourites list with the exporter below, or paste individual product links (one per line). The tracker reads public product listings; it does not use or store your CeX login.</p>
+<p class="muted small">Import a whole favourites list with the exporter below, or paste individual product links (one per line). 4K favourites join the main wishlist after refresh; non-4K items remain here. The tracker reads public listings and does not store your CeX login.</p>
 <details>
   <summary>Export hundreds of favourites at once</summary>
   <p class="muted small">Drag the exporter link to your bookmarks bar. While signed in, open any CeX favourites page and click it. It exports the current page first, then tries other linked pages; if CeX does not return their product links, it tells you which pages to export separately.</p>
@@ -36,7 +36,7 @@
 </form>
 {% if favourites %}
 <table class="stores">
-  <thead><tr><th>Favourite</th><th>Category</th><th class="num">Price</th><th>Online</th><th>Blacktown</th><th>Rouse Hill</th><th></th></tr></thead>
+  <thead><tr><th>Favourite</th><th>Category</th><th class="num">Price</th><th>Online</th><th>Blacktown</th><th>Rouse Hill</th><th>Wishlist</th><th></th></tr></thead>
   <tbody>
   {% for row in favourites %}
     <tr>
@@ -54,6 +54,13 @@
         {% else %}<span class="muted">No stock</span>{% endif %}
       </td>
       {% endfor %}
+      <td>
+        {% if row.wishlist_title %}<a href="/title/{{ row.wishlist_title.id }}">{{ 'Purchased' if row.wishlist_title.purchased else 'In wishlist' }}</a>
+        {% elif row.wishlist_excluded and (row.wishlist_eligible or not row.product) %}<form method="post" action="/cex/favourites/{{ row.box_id }}/wishlist"><button class="btn small">Add to wishlist</button></form>
+        {% elif row.wishlist_eligible %}<span class="muted">Pending CeX refresh</span>
+        {% elif row.product %}<span class="muted">Non-4K; CeX only</span>
+        {% else %}<span class="muted">Waiting for CeX refresh</span>{% endif %}
+      </td>
       <td class="row-actions">
         <form method="post" action="/cex/favourites/{{ row.box_id }}/remove" onsubmit="return confirm('Remove this CeX favourite from the tracker?')">
           <button class="btn small danger">Remove</button>

@@ -10,10 +10,16 @@
 
     {% if t.needs_review %}
     <div class="alert warn">
-      <strong>Is this the right release?</strong>
-      {% if t.source_title %}It was matched automatically from Amazon's “{{ t.source_title }}”.{% endif %}
-      Confirm it, or pick a different edition below.
-      <form method="post" action="/title/{{ t.id }}/confirm" class="inline"><button class="btn primary small">Yes, this is right</button></form>
+      {% if t.bluray_url %}
+        <strong>Is this the right release?</strong>
+        {% if t.source == 'amazon' and t.source_title %}It was matched automatically from Amazon's “{{ t.source_title }}”.{% endif %}
+        Confirm it, or pick a different edition below.
+        <form method="post" action="/title/{{ t.id }}/confirm" class="inline"><button class="btn primary small">Yes, this is right</button></form>
+      {% else %}
+        <strong>Choose the matching blu-ray.com release.</strong>
+        {% if t.source == 'cex' and t.source_title %}Imported from your CeX favourite: “{{ t.source_title }}”.{% endif %}
+        Search below and select the right 4K release before confirming.
+      {% endif %}
     </div>
     {% endif %}
 

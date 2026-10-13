@@ -7,9 +7,9 @@ from urllib.parse import parse_qs, urlencode, urlsplit
 import httpx
 from sqlmodel import select
 
-from . import config
+from . import config, importer
 from .db import CexEvent, CexFavourite, CexProduct, CexTitleMatch, Title, get_session
-from .matching import REVIEW, score, score_barcode
+from .matching import REVIEW, core_title, score, score_barcode
 
 ALGOLIA_URL = (
     "https://search.webuy.io/1/indexes/prod_cex_au/query"
@@ -56,6 +56,14 @@ CEX_FAVOURITES_EXPORTER = (
 def _barcodes(title: Title) -> set[str]:
     return {value for value in re.split(r"[\s,;]+", f"{title.upc or ''},{title.alt_upcs or ''}")
             if value}
+
+
+def _same_barcode(box_id: str, upc: str) -> bool:
+    if box_id == upc:
+        return True
+    if box_id.isdigit() and upc.isdigit():
+        return (box_id.lstrip("0") or "0") == (upc.lstrip("0") or "0")
+    return False
 
 
 def _raise_if_cancelled() -> None:
@@ -451,6 +459,90 @@ def _favourite_products(client: httpx.Client, progress=None) -> list[dict]:
     return products
 
 
+def _favourite_matches_title(title: Title, product: CexProduct) -> bool:
+    if not title.is_4k:
+        return False
+    upcs = ({title.upc} if title.upc else set()) if title.match_mode == "exact" else _barcodes(title)
+    if any(_same_barcode(product.box_id, upc) for upc in upcs):
+        return True
+    if title.match_mode in ("exact", "selected"):
+        return False
+
+    candidate = core_title(re.sub(
+        r"\b(?:BR|BD)\b", " ", _match_candidate(product, True), flags=re.I,
+    ))
+    if not candidate or candidate != core_title(title.name):
+        return False
+    product_year = _favourite_year(product.name)
+    title_year = _favourite_year(title.year or "")
+    if product_year and title_year and abs(int(product_year) - int(title_year)) > 1:
+        return False
+    return True
+
+
+def _favourite_year(value: str) -> str | None:
+    years = re.findall(r"\b(?:19|20)\d{2}\b", value)
+    return years[-1] if years else None
+
+
+def _wishlist_title_details(product: CexProduct) -> tuple[str, str | None]:
+    name = importer._display_name(_RATING_RE.sub(" ", product.name))
+    name = re.sub(r"\b(?:BR|BD)\b", " ", name, flags=re.I)
+    name = re.sub(r"\s+", " ", name).strip().rstrip("+/ ")
+    year = _favourite_year(product.name)
+    if year:
+        name = re.sub(rf"\s+{year}\s*$", "", name)
+    return name.strip(" -/+:,") or product.name, year
+
+
+def _sync_favourites_to_wishlist(progress=None) -> int:
+    fresh_after = datetime.utcnow() - timedelta(hours=48)
+    with get_session() as session:
+        favourites = session.exec(select(CexFavourite)).all()
+        products = {item.box_id: item for item in session.exec(select(CexProduct)).all()}
+        titles = session.exec(select(Title)).all()
+        title_by_id = {title.id: title for title in titles}
+        added = 0
+        eligible = [
+            favourite for favourite in favourites
+            if not favourite.wishlist_excluded
+            and (product := products.get(favourite.box_id))
+            and product.category == "Blu-Ray 4K" and product.last_seen >= fresh_after
+        ]
+        for index, favourite in enumerate(eligible, 1):
+            if progress:
+                progress(f"Adding CeX 4K favourites to wishlist {index} of {len(eligible)}")
+            linked = title_by_id.get(favourite.title_id)
+            if linked:
+                continue
+            product = products[favourite.box_id]
+            linked = next(
+                (title for title in titles if _favourite_matches_title(title, product)),
+                None,
+            )
+            if linked is None:
+                name, year = _wishlist_title_details(product)
+                box_id_is_upc = product.box_id.isdigit() and len(product.box_id) in (8, 12, 13, 14)
+                linked = Title(
+                    name=name,
+                    year=year,
+                    is_4k=True,
+                    upc=product.box_id if box_id_is_upc else None,
+                    source="cex",
+                    source_title=product.name,
+                    needs_review=True,
+                )
+                session.add(linked)
+                session.flush()
+                titles.append(linked)
+                title_by_id[linked.id] = linked
+                added += 1
+            favourite.title_id = linked.id
+            session.add(favourite)
+        session.commit()
+    return added
+
+
 def sync(progress=None) -> None:
     """Refresh CeX 4K inventory, favourites, and owned standard Blu-ray buyback values."""
     timeout = httpx.Timeout(30.0, connect=10.0)
@@ -463,6 +555,7 @@ def sync(progress=None) -> None:
         with get_session() as session:
             baseline = session.exec(select(CexProduct.id)).first() is None
         _record_products(products + favourite_products, baseline=baseline)
+        _sync_favourites_to_wishlist(progress)
         _match_collection_titles(client, progress)
     _refresh_title_matches()
     with get_session() as session:
@@ -476,6 +569,7 @@ def sync(progress=None) -> None:
 def page_data() -> dict:
     with get_session() as session:
         titles = session.exec(select(Title)).all()
+        title_by_id = {title.id: title for title in titles}
         all_products = {item.box_id: item for item in session.exec(select(CexProduct)).all()}
         favourites = session.exec(
             select(CexFavourite).order_by(CexFavourite.added_at.desc())
@@ -500,6 +594,9 @@ def page_data() -> dict:
             "url": product.url if product and product.url else favourite.url,
             "product": product,
             "stale": not product or product.last_seen < fresh_after,
+            "wishlist_title": title_by_id.get(favourite.title_id),
+            "wishlist_eligible": bool(product and product.category == "Blu-Ray 4K"),
+            "wishlist_excluded": favourite.wishlist_excluded,
             "not_found": bool(
                 favourite.checked_at
                 and (not product or product.last_seen < favourite.checked_at)
