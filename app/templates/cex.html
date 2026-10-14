@@ -8,6 +8,8 @@
   </div>
   <div class="actions">
     <form method="post" action="/cex/refresh">
+      <input type="hidden" name="location" value="{{ location }}">
+      <input type="hidden" name="sort" value="{{ catalogue_sort }}">
       <button class="btn primary">Refresh CeX data</button>
     </form>
   </div>
@@ -20,6 +22,55 @@
 </p>
 {% if stale %}<div class="alert warn">{% if last_sync %}CeX data may be stale; the last successful refresh was {{ last_sync|local }}.{% else %}CeX data has not been refreshed yet. Use “Refresh CeX data” to populate this page.{% endif %}</div>{% endif %}
 {% if msg %}<div class="alert {{ msg_type }}">{{ msg }}</div>{% endif %}
+
+<form method="get" action="/cex" class="toolbar">
+  <label>Available at
+    <select name="location">
+      {% for value, label in stock_locations.items() %}
+      <option value="{{ value }}" {% if location == value %}selected{% endif %}>{{ label }}</option>
+      {% endfor %}
+    </select>
+  </label>
+  <label>Sort 4K catalogue
+    <select name="sort">
+      {% for value, label in catalogue_sorts.items() %}
+      <option value="{{ value }}" {% if catalogue_sort == value %}selected{% endif %}>{{ label }}</option>
+      {% endfor %}
+    </select>
+  </label>
+  <button class="btn primary">Apply filters</button>
+  {% if location or catalogue_sort != 'name' %}<a class="btn" href="/cex">Reset</a>{% endif %}
+</form>
+<p class="muted small">Store filters show confirmed local 4K stock in the catalogue, favourites and wishlist opportunities. Unknown or older-than-48-hour listings are excluded. Trade-in offers and recent changes stay unfiltered.</p>
+
+<h2>All 4K Blu-rays{% if location %} - {{ stock_locations[location] }}{% endif %}</h2>
+<p class="muted small">{{ catalogue_filtered_count }} matching catalogue items{% if catalogue_pages > 1 %} · page {{ catalogue_page }} of {{ catalogue_pages }}{% endif %}. Stock reflects the last refresh; confirm availability with CeX before visiting.</p>
+{% if catalogue %}
+<table class="stores">
+  <thead><tr><th>4K title</th><th class="num">Price</th><th>Online</th><th>Blacktown</th><th>Rouse Hill</th></tr></thead>
+  <tbody>
+  {% for row in catalogue %}
+    <tr>
+      <td><a href="{{ row.product.url }}" target="_blank" rel="noopener">{{ row.product.name }}</a></td>
+      <td class="num">{{ row.product.sell_price|money }}</td>
+      <td>{% if row.product.online_stock is none %}<span class="muted">Unknown</span>{% elif row.product.online_stock %}<span class="badge ok">In stock</span>{% else %}<span class="muted">No stock</span>{% endif %}</td>
+      {% for store in ('Blacktown', 'Rouse Hill') %}
+      <td>{% if store not in row.branches %}<span class="muted">Unknown</span>{% elif row.branches.get(store) %}<span class="badge ok">In stock</span>{% else %}<span class="muted">No stock</span>{% endif %}</td>
+      {% endfor %}
+    </tr>
+  {% endfor %}
+  </tbody>
+</table>
+{% if catalogue_pages > 1 %}
+<div class="row gap">
+  {% if catalogue_page > 1 %}<a class="btn small" href="{{ request.url.include_query_params(location=location, sort=catalogue_sort, page=catalogue_page - 1) }}">Previous</a>{% endif %}
+  <span class="muted small">Page {{ catalogue_page }} of {{ catalogue_pages }}</span>
+  {% if catalogue_page < catalogue_pages %}<a class="btn small" href="{{ request.url.include_query_params(location=location, sort=catalogue_sort, page=catalogue_page + 1) }}">Next</a>{% endif %}
+</div>
+{% endif %}
+{% else %}
+<div class="empty"><p>{% if location %}No confirmed 4K stock at {{ stock_locations[location] }} in the recent cache.{% else %}No recent 4K catalogue data. Use "Refresh CeX data" to populate the catalogue.{% endif %}</p></div>
+{% endif %}
 
 <h2>My CeX favourites</h2>
 <p class="muted small">Import a whole favourites list with the exporter below, or paste individual product links (one per line). 4K favourites join the main wishlist after refresh; non-4K items remain here. The tracker reads public listings and does not store your CeX login.</p>
@@ -71,7 +122,7 @@
   </tbody>
 </table>
 {% else %}
-<div class="empty"><p>No CeX favourites imported yet.</p></div>
+<div class="empty"><p>{% if location %}No imported 4K favourites with confirmed stock at {{ stock_locations[location] }}.{% else %}No CeX favourites imported yet.{% endif %}</p></div>
 {% endif %}
 
 <h2>4K wishlist opportunities</h2>
@@ -119,7 +170,7 @@
   </tbody>
 </table>
 {% else %}
-<div class="empty"><p>No 4K wishlist titles yet.</p></div>
+<div class="empty"><p>{% if location %}No 4K wishlist matches with confirmed stock at {{ stock_locations[location] }}.{% else %}No 4K wishlist titles yet.{% endif %}</p></div>
 {% endif %}
 
 <h2>Standard Blu-rays you could sell or trade</h2>

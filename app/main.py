@@ -5,11 +5,11 @@ import logging
 from contextlib import asynccontextmanager
 from datetime import date, datetime
 from pathlib import Path
-from urllib.parse import quote_plus, urlsplit
+from urllib.parse import quote_plus, urlencode, urlsplit
 from zoneinfo import ZoneInfo
 
 import httpx
-from fastapi import FastAPI, Form, HTTPException, Request
+from fastapi import FastAPI, Form, HTTPException, Query, Request
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
@@ -230,14 +230,20 @@ def collection_page(request: Request, q: str = "", sort: str = "name"):
 
 
 @app.get("/cex", response_class=HTMLResponse)
-def cex_page(request: Request, msg: str = "", msg_type: str = "ok"):
-    return render(request, "cex.html", **cex.page_data(), msg=msg, msg_type=msg_type)
+def cex_page(request: Request, msg: str = "", msg_type: str = "ok",
+             location: str = "", sort: str = "name", page: int = Query(1, ge=1)):
+    if location not in cex.STOCK_LOCATIONS or sort not in cex.CATALOGUE_SORTS:
+        raise HTTPException(400, "Unknown CeX stock location or sort order")
+    return render(request, "cex.html", **cex.page_data(location, sort, page),
+                  msg=msg, msg_type=msg_type)
 
 
 @app.post("/cex/refresh")
-def cex_refresh():
+def cex_refresh(location: str = Form(""), sort: str = Form("name")):
+    if location not in cex.STOCK_LOCATIONS or sort not in cex.CATALOGUE_SORTS:
+        raise HTTPException(400, "Unknown CeX stock location or sort order")
     jobs.queue_cex_refresh()
-    return back("/cex")
+    return back("/cex?" + urlencode({"location": location, "sort": sort}))
 
 
 @app.post("/cex/favourites/import")

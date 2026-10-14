@@ -30,6 +30,11 @@ FILTER_4K = (
     'AND categoryFriendlyName:"Blu-Ray 4K"'
 )
 BRANCHES = ("Blacktown", "Rouse Hill")
+STOCK_LOCATIONS = {"": "All locations", "either": "Either preferred store",
+                   **{branch: branch for branch in BRANCHES}}
+CATALOGUE_SORTS = {"name": "Title (A-Z)", "price": "Price (low to high)",
+                   "price_desc": "Price (high to low)"}
+CATALOGUE_PAGE_SIZE = 50
 TRADE_IN_MINIMUM = 3.0
 FREE_DELIVERY_ITEM_OVER = config.CEX_FREE_DELIVERY_ITEM_OVER
 DELIVERY_PER_ITEM = config.CEX_DELIVERY_PER_ITEM
@@ -573,7 +578,18 @@ def sync(progress=None) -> None:
         session.commit()
 
 
-def page_data() -> dict:
+def page_data(location: str = "", sort: str = "name", page: int = 1) -> dict:
+    if location not in STOCK_LOCATIONS or sort not in CATALOGUE_SORTS or page < 1:
+        raise ValueError("Invalid CeX catalogue filter")
+
+    def available(branches: dict | None) -> bool:
+        if not location:
+            return True
+        branches = branches or {}
+        if location == "either":
+            return any(branches.get(branch) is True for branch in BRANCHES)
+        return branches.get(location) is True
+
     with get_session() as session:
         titles = session.exec(select(Title)).all()
         title_by_id = {title.id: title for title in titles}
@@ -593,6 +609,24 @@ def page_data() -> dict:
     fresh_after = datetime.utcnow() - timedelta(hours=48)
     products = {box_id: product for box_id, product in all_products.items()
                 if product.last_seen >= fresh_after}
+    catalogue = [
+        {"product": product, "branches": json.loads(product.branch_stock_json or "{}")}
+        for product in products.values() if product.category == "Blu-Ray 4K"
+    ]
+    catalogue_count = len(catalogue)
+    catalogue = [row for row in catalogue if available(row["branches"])]
+    if sort == "name":
+        catalogue.sort(key=lambda row: (row["product"].name.lower(), row["product"].box_id))
+    else:
+        catalogue.sort(key=lambda row: (
+            row["product"].sell_price is None,
+            (row["product"].sell_price or 0) * (-1 if sort == "price_desc" else 1),
+            row["product"].name.lower(), row["product"].box_id,
+        ))
+    filtered_count = len(catalogue)
+    catalogue_pages = max(1, (filtered_count + CATALOGUE_PAGE_SIZE - 1) // CATALOGUE_PAGE_SIZE)
+    page = min(page, catalogue_pages)
+    catalogue = catalogue[(page - 1) * CATALOGUE_PAGE_SIZE:page * CATALOGUE_PAGE_SIZE]
     favourite_rows = []
     for favourite in favourites:
         product = all_products.get(favourite.box_id)
@@ -616,6 +650,12 @@ def page_data() -> dict:
     favourite_rows.sort(key=lambda row: (
         (row["product"].name if row["product"] else row["box_id"]).lower()
     ))
+    if location:
+        favourite_rows = [
+            row for row in favourite_rows
+            if row["product"] and row["product"].category == "Blu-Ray 4K"
+            and not row["stale"] and not row["not_found"] and available(row["branches"])
+        ]
     wanted_by_id = {}
     owned = []
     for title in titles:
@@ -656,6 +696,8 @@ def page_data() -> dict:
                 })
     wanted = sorted(wanted_by_id.values(),
                     key=lambda row: (not row["competitive"], row["title"].name.lower()))
+    if location:
+        wanted = [row for row in wanted if row["product"] and available(row["branches"])]
     owned.sort(key=lambda row: -max(
         row["product"].cash_buy_price or 0, row["product"].exchange_price or 0,
     ))
@@ -690,11 +732,19 @@ def page_data() -> dict:
         event_rows.append({"event": event, "product": product, "change": change})
     return {
         "exporter_bookmarklet": CEX_FAVOURITES_EXPORTER,
+        "location": location,
+        "stock_locations": STOCK_LOCATIONS,
+        "catalogue_sort": sort,
+        "catalogue_sorts": CATALOGUE_SORTS,
+        "catalogue": catalogue,
+        "catalogue_filtered_count": filtered_count,
+        "catalogue_page": page,
+        "catalogue_pages": catalogue_pages,
         "favourites": favourite_rows,
         "wanted": wanted,
         "owned": owned,
         "events": event_rows,
         "last_sync": sync_event.created_at if sync_event else None,
         "stale": not sync_event or sync_event.created_at < datetime.utcnow() - timedelta(hours=36),
-        "catalogue_count": len([p for p in products.values() if p.category == "Blu-Ray 4K"]),
+        "catalogue_count": catalogue_count,
     }
