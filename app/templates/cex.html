@@ -23,6 +23,31 @@
 {% if stale %}<div class="alert warn">{% if last_sync %}CeX data may be stale; the last successful refresh was {{ last_sync|local }}.{% else %}CeX data has not been refreshed yet. Use “Refresh CeX data” to populate this page.{% endif %}</div>{% endif %}
 {% if msg %}<div class="alert {{ msg_type }}">{{ msg }}</div>{% endif %}
 
+<h2>Recent CeX changes</h2>
+<p class="muted small">“First observed” means first seen by this tracker, not a CeX-listed arrival date. CeX does not expose a stock-added timestamp.</p>
+{% if events %}
+<table class="stores">
+  <thead><tr><th>When</th><th>Product</th><th>Change</th></tr></thead>
+  <tbody>
+  {% for row in events %}
+    <tr>
+      <td>{{ row.event.created_at|local }}</td>
+      <td>{% if row.product %}<a href="{{ row.product.url }}" target="_blank" rel="noopener">{{ row.event.product_name }}</a>{% else %}{{ row.event.product_name }}{% endif %}</td>
+      <td>
+        {% if row.event.event_type == 'new' %}New to tracked catalogue
+        {% elif row.event.event_type == 'stock_added' %}Back in stock
+        {% elif row.event.event_type == 'price' %}Price: {{ row.change }}
+        {% elif row.event.event_type == 'buyback' %}Buyback: {{ row.change }}
+        {% else %}{{ row.change }}{% endif %}
+      </td>
+    </tr>
+  {% endfor %}
+  </tbody>
+</table>
+{% else %}
+<div class="empty"><p>No new, restocked or repriced items recorded in the last 30 days.</p></div>
+{% endif %}
+
 <form method="get" action="/cex" class="toolbar">
   <label>Available at
     <select name="location">
@@ -196,28 +221,4 @@
 <div class="empty"><p>No qualifying CeX trade-in offers found for owned standard Blu-rays.</p></div>
 {% endif %}
 
-<h2>Recent CeX changes</h2>
-<p class="muted small">“First observed” means first seen by this tracker, not a CeX-listed arrival date. CeX does not expose a stock-added timestamp.</p>
-{% if events %}
-<table class="stores">
-  <thead><tr><th>When</th><th>Product</th><th>Change</th></tr></thead>
-  <tbody>
-  {% for row in events %}
-    <tr>
-      <td>{{ row.event.created_at|local }}</td>
-      <td>{% if row.product %}<a href="{{ row.product.url }}" target="_blank" rel="noopener">{{ row.event.product_name }}</a>{% else %}{{ row.event.product_name }}{% endif %}</td>
-      <td>
-        {% if row.event.event_type == 'new' %}New to tracked catalogue
-        {% elif row.event.event_type == 'stock_added' %}Back in stock
-        {% elif row.event.event_type == 'price' %}Price: {{ row.change }}
-        {% elif row.event.event_type == 'buyback' %}Buyback: {{ row.change }}
-        {% else %}{{ row.change }}{% endif %}
-      </td>
-    </tr>
-  {% endfor %}
-  </tbody>
-</table>
-{% else %}
-<div class="empty"><p>No new, restocked or repriced items recorded in the last 30 days.</p></div>
-{% endif %}
 {% endblock %}
