@@ -80,6 +80,13 @@ def _price_text(value: str | None) -> str:
         return "—"
 
 
+def _has_cex_stock(snapshot: str | None) -> bool:
+    availability = json.loads(snapshot or "{}")
+    return availability.get("online") is True or any(
+        availability.get(store) is True for store in BRANCHES
+    )
+
+
 def _match_candidate(product: CexProduct | dict, wanted_4k: bool) -> str:
     name = product["name"] if isinstance(product, dict) else product.name
     name = _RATING_RE.sub(" ", name)
@@ -661,7 +668,14 @@ def page_data() -> dict:
         if event.event_type == "new":
             change = "First observed by this tracker"
         elif event.event_type == "stock_added":
-            change = "Back in stock at CeX"
+            change = "Back in stock"
+        elif event.event_type == "stock":
+            was_available = _has_cex_stock(event.old_value)
+            is_available = _has_cex_stock(event.new_value)
+            if was_available and not is_available:
+                change = "Sold out"
+            else:
+                continue
         elif event.event_type == "price":
             change = f"{_price_text(event.old_value)} to {_price_text(event.new_value)}"
         elif event.event_type == "buyback":
@@ -672,7 +686,7 @@ def page_data() -> dict:
                 f"voucher {_price_text(old_exchange)} to {_price_text(new_exchange)}"
             )
         else:
-            change = "Availability changed"
+            continue
         event_rows.append({"event": event, "product": product, "change": change})
     return {
         "exporter_bookmarklet": CEX_FAVOURITES_EXPORTER,
