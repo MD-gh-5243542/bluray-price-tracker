@@ -8,12 +8,13 @@ from pathlib import Path
 from urllib.parse import quote_plus, urlsplit
 from zoneinfo import ZoneInfo
 
+import httpx
 from fastapi import FastAPI, Form, HTTPException, Request
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
-from . import bluray, cex, collection_importer, config, jobs, notify
+from . import bestblurays, bluray, cex, collection_importer, config, fetch, jobs, notify
 from .stores import MODULES
 from .stores.base import MATCH_MODES, parse_upcs
 from .db import (STORE_NAMES, STORES, CexFavourite, CexTitleMatch, ExcludedUrl, Listing, PricePoint, Title,
@@ -440,7 +441,69 @@ def title_page(request: Request, tid: int, q: str = ""):
             pass
     return render(request, "title.html", t=t, listings=ls, cands=cands, ship=ship, totals=totals,
                   chart=_history_svg(pts), excluded=excluded, q=q, search_results=search_results,
-                  editions=editions)
+                  editions=editions,
+                  uhd_candidates=json.loads(t.uhd_candidates_json or "[]"))
+
+
+@app.post("/title/{tid}/uhd/check")
+def title_uhd_check(tid: int):
+    with get_session() as s:
+        t = s.get(Title, tid)
+        if not t:
+            raise HTTPException(404)
+        if not t.is_4k:
+            raise HTTPException(400, "UHD tiers are only available for 4K titles")
+        identity = bestblurays.release_key(t)
+        name, year = t.name, t.year
+    error = None
+    try:
+        candidates = bestblurays.lookup(name, year)
+    except (httpx.HTTPError, fetch.Blocked, bestblurays.LookupError) as exc:
+        logging.getLogger(__name__).warning("BestBluRays lookup for title %s failed: %s", tid, exc)
+        error = str(exc)
+    with get_session() as s:
+        t = s.get(Title, tid)
+        if not t:
+            raise HTTPException(404)
+        if bestblurays.release_key(t) != identity:
+            raise HTTPException(409, "The release changed during lookup; check the UHD tier again")
+        t.uhd_checked_at = datetime.utcnow()
+        t.uhd_error = error
+        if error is None:
+            t.uhd_candidates_json = json.dumps(candidates)
+        s.add(t)
+        s.commit()
+    return back(f"/title/{tid}#uhd-tier")
+
+
+@app.post("/title/{tid}/uhd/select")
+def title_uhd_select(tid: int, key: str = Form(...)):
+    with get_session() as s:
+        t = s.get(Title, tid)
+        if not t:
+            raise HTTPException(404)
+        candidates = json.loads(t.uhd_candidates_json or "[]")
+        chosen = next((c for c in candidates if c["key"] == key), None)
+        if not chosen:
+            raise HTTPException(409, "This tier result is no longer available; check again")
+        t.uhd_tier = chosen["tier"]
+        t.uhd_release = chosen["release"]
+        t.uhd_source_url = chosen["url"]
+        s.add(t)
+        s.commit()
+    return back(f"/title/{tid}#uhd-tier")
+
+
+@app.post("/title/{tid}/uhd/clear")
+def title_uhd_clear(tid: int):
+    with get_session() as s:
+        t = s.get(Title, tid)
+        if not t:
+            raise HTTPException(404)
+        bestblurays.clear(t)
+        s.add(t)
+        s.commit()
+    return back(f"/title/{tid}#uhd-tier")
 
 
 @app.get("/title/{tid}/editions", response_class=HTMLResponse)
@@ -486,6 +549,8 @@ def title_update(tid: int, target_price: str = Form(""), notes: str = Form(""),
         t.target_price = float(target_price) if target_price.strip() else None
         t.notes = notes.strip() or None
         t.search_terms = search_terms.strip() or None
+        if t.upc != (upc or None):
+            bestblurays.clear(t)
         t.upc = upc or None
         t.match_mode = match_mode
         t.alt_upcs = ",".join(dict.fromkeys(extra)) or None

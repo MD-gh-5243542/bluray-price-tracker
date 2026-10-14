@@ -47,6 +47,12 @@ class Title(SQLModel, table=True):
     runtime: Optional[str] = None
     rating: Optional[str] = None
     region: Optional[str] = None
+    uhd_tier: Optional[str] = None
+    uhd_release: Optional[str] = None
+    uhd_source_url: Optional[str] = None
+    uhd_checked_at: Optional[datetime] = None
+    uhd_candidates_json: Optional[str] = None
+    uhd_error: Optional[str] = None
 
     # Wishlist bookkeeping
     source: str = "manual"  # manual | amazon | cex
@@ -181,6 +187,12 @@ _NEW_COLUMNS = {
     "title": {
         "match_mode": "VARCHAR NOT NULL DEFAULT 'any'",
         "alt_upcs": "VARCHAR",
+        "uhd_tier": "VARCHAR",
+        "uhd_release": "VARCHAR",
+        "uhd_source_url": "VARCHAR",
+        "uhd_checked_at": "DATETIME",
+        "uhd_candidates_json": "VARCHAR",
+        "uhd_error": "VARCHAR",
     },
     "listing": {
         "by_barcode": "BOOLEAN NOT NULL DEFAULT 0",

@@ -6,7 +6,7 @@ from datetime import date, datetime
 
 from bs4 import BeautifulSoup
 
-from . import config, fetch
+from . import bestblurays, config, fetch
 from .matching import is_4k
 
 BASE = "https://www.blu-ray.com"
@@ -184,6 +184,8 @@ def details(url: str) -> Release:
 
 def apply_release(title, rel: Release) -> None:
     """Copy blu-ray.com release info onto a Title (source of truth)."""
+    if bestblurays.release_key(title) != bestblurays.release_key(rel):
+        bestblurays.clear(title)
     title.bluray_id = rel.bluray_id
     title.bluray_url = rel.url
     title.name = rel.name
