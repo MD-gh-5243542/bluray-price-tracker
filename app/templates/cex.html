@@ -33,7 +33,7 @@
     <input type="hidden" name="category" value="{{ catalogue_category }}">
     <label class="small">Show
       <select name="changes">
-        <option value="all" {% if changes_category == 'all' %}selected{% endif %}>4K, anime and other changes</option>
+        <option value="all" {% if changes_category == 'all' %}selected{% endif %}>All categories</option>
         <option value="4k" {% if changes_category == '4k' %}selected{% endif %}>4K changes</option>
         <option value="anime" {% if changes_category == 'anime' %}selected{% endif %}>Anime changes</option>
       </select>
@@ -63,7 +63,7 @@
   </tbody>
 </table>
 {% else %}
-<div class="empty"><p>No new, restocked or repriced items recorded in the last 30 days.</p></div>
+<div class="empty"><p>No new listings or availability changes recorded in the last 30 days.</p></div>
 {% endif %}
 
 <div class="section-heading">

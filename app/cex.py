@@ -610,7 +610,7 @@ def page_data(location: str = "", sort: str = "name", page: int = 1,
         ).all()
         matches = {item.key: item for item in session.exec(select(CexTitleMatch)).all()}
         events = session.exec(
-            select(CexEvent).where(CexEvent.event_type != "sync")
+            select(CexEvent).where(CexEvent.event_type.in_(("new", "stock_added", "stock")))
             .order_by(CexEvent.created_at.desc())
         ).all()
         sync_event = session.exec(
@@ -714,8 +714,7 @@ def page_data(location: str = "", sort: str = "name", page: int = 1,
         row["product"].cash_buy_price or 0, row["product"].exchange_price or 0,
     ))
     recent = [event for event in events
-              if event.event_type in ("new", "stock_added", "price", "stock", "buyback")
-              and event.created_at >= datetime.utcnow() - timedelta(days=30)]
+              if event.created_at >= datetime.utcnow() - timedelta(days=30)]
     event_rows = []
     for event in recent:
         product = all_products.get(event.box_id)
@@ -749,15 +748,6 @@ def page_data(location: str = "", sort: str = "name", page: int = 1,
                         f"Online: {'Back in stock' if current.get('online') else 'Sold out'}"
                     )
                 change = "; ".join(branch_changes) or "Availability changed"
-        elif event.event_type == "price":
-            change = f"{_price_text(event.old_value)} to {_price_text(event.new_value)}"
-        elif event.event_type == "buyback":
-            old_cash, old_exchange = (event.old_value or "/").split("/", 1)
-            new_cash, new_exchange = (event.new_value or "/").split("/", 1)
-            change = (
-                f"Cash {_price_text(old_cash)} to {_price_text(new_cash)}; "
-                f"voucher {_price_text(old_exchange)} to {_price_text(new_exchange)}"
-            )
         else:
             continue
         event_rows.append({
