@@ -64,6 +64,13 @@ label.check { display: flex; flex-direction: row; gap: .5rem; align-items: cente
 .toolbar { display: flex; justify-content: space-between; gap: 1rem; flex-wrap: wrap; margin-bottom: .6rem; }
 .toolbar .filters, .toolbar .actions { display: flex; gap: .5rem; flex-wrap: wrap; }
 .toolbar .actions form { margin: 0; }
+.section-heading { display: flex; justify-content: space-between; align-items: baseline;
+  gap: 1rem; flex-wrap: wrap; }
+.section-heading h2 { margin-bottom: .6rem; }
+.cex-secondary { margin-top: 1rem; }
+.cex-secondary > summary { cursor: pointer; color: var(--text); font-size: 1.15rem;
+  font-weight: 600; padding: .7rem 0; border-bottom: 1px solid var(--line); }
+.cex-secondary[open] > summary { margin-bottom: .6rem; }
 
 table { width: 100%; border-collapse: collapse; background: var(--panel); border-radius: var(--radius); overflow: hidden; }
 th, td { padding: .5rem .6rem; border-bottom: 1px solid var(--line); text-align: left; vertical-align: middle; }

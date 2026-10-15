@@ -231,19 +231,27 @@ def collection_page(request: Request, q: str = "", sort: str = "name"):
 
 @app.get("/cex", response_class=HTMLResponse)
 def cex_page(request: Request, msg: str = "", msg_type: str = "ok",
-             location: str = "", sort: str = "name", page: int = Query(1, ge=1)):
-    if location not in cex.STOCK_LOCATIONS or sort not in cex.CATALOGUE_SORTS:
+             location: str = "", sort: str = "name", page: int = Query(1, ge=1),
+             category: str = "4k", changes: str = "all"):
+    if (location not in cex.STOCK_LOCATIONS or sort not in cex.CATALOGUE_SORTS
+            or category not in cex.CATALOGUE_CATEGORIES
+            or changes not in ("all", *cex.CATALOGUE_CATEGORIES)):
         raise HTTPException(400, "Unknown CeX stock location or sort order")
-    return render(request, "cex.html", **cex.page_data(location, sort, page),
+    return render(request, "cex.html", **cex.page_data(location, sort, page, category, changes),
                   msg=msg, msg_type=msg_type)
 
 
 @app.post("/cex/refresh")
-def cex_refresh(location: str = Form(""), sort: str = Form("name")):
-    if location not in cex.STOCK_LOCATIONS or sort not in cex.CATALOGUE_SORTS:
+def cex_refresh(location: str = Form(""), sort: str = Form("name"),
+                category: str = Form("4k"), changes: str = Form("all")):
+    if (location not in cex.STOCK_LOCATIONS or sort not in cex.CATALOGUE_SORTS
+            or category not in cex.CATALOGUE_CATEGORIES
+            or changes not in ("all", *cex.CATALOGUE_CATEGORIES)):
         raise HTTPException(400, "Unknown CeX stock location or sort order")
     jobs.queue_cex_refresh()
-    return back("/cex?" + urlencode({"location": location, "sort": sort}))
+    return back("/cex?" + urlencode({
+        "location": location, "sort": sort, "category": category, "changes": changes,
+    }))
 
 
 @app.post("/cex/favourites/import")

@@ -29,6 +29,11 @@ FILTER_4K = (
     'boxVisibilityOnWeb=1 AND boxSaleAllowed=1 AND sellPrice > 0 '
     'AND categoryFriendlyName:"Blu-Ray 4K"'
 )
+FILTER_ANIME = (
+    'boxVisibilityOnWeb=1 AND boxSaleAllowed=1 AND sellPrice > 0 '
+    'AND categoryFriendlyName:"Blu-Ray Anime"'
+)
+CATALOGUE_CATEGORIES = {"4k": "4K Blu-rays", "anime": "Anime Blu-rays"}
 BRANCHES = ("Blacktown", "Rouse Hill")
 STOCK_LOCATIONS = {"": "All locations", "either": "Either preferred store",
                    **{branch: branch for branch in BRANCHES}}
@@ -205,8 +210,9 @@ def _query_many(client: httpx.Client, queries: list[str]) -> list[dict]:
     return results
 
 
-def _catalogue(client: httpx.Client, progress=None) -> list[dict]:
-    first = _query(client, "", filters=FILTER_4K, hits_per_page=1000, facets=["sellPrice"])
+def _catalogue(client: httpx.Client, category: str, progress=None) -> list[dict]:
+    catalogue_filter = {"4k": FILTER_4K, "anime": FILTER_ANIME}[category]
+    first = _query(client, "", filters=catalogue_filter, hits_per_page=1000, facets=["sellPrice"])
     total = first.get("nbHits", 0)
     hits = first["hits"]
     if total > len(hits):
@@ -218,7 +224,7 @@ def _catalogue(client: httpx.Client, progress=None) -> list[dict]:
         def price_partition(low: float, high: float, include_high: bool, depth: int = 0) -> list[dict]:
             _raise_if_cancelled()
             upper_operator = "<=" if include_high else "<"
-            filters = f"{FILTER_4K} AND sellPrice >= {low} AND sellPrice {upper_operator} {high}"
+            filters = f"{catalogue_filter} AND sellPrice >= {low} AND sellPrice {upper_operator} {high}"
             response = _query(client, "", filters=filters, hits_per_page=1000)
             if response.get("nbHits", 0) <= len(response["hits"]):
                 return response["hits"]
@@ -238,7 +244,7 @@ def _catalogue(client: httpx.Client, progress=None) -> list[dict]:
         _raise_if_cancelled()
         if progress:
             progress(f"Loading CeX 4K catalogue page {page + 1} of {pages}")
-        hits.extend(_query(client, "", filters=FILTER_4K, page=page, hits_per_page=1000)["hits"])
+        hits.extend(_query(client, "", filters=catalogue_filter, page=page, hits_per_page=1000)["hits"])
     products = [_normalise_hit(hit) for hit in hits]
     return [product for product in products if product["box_id"] and product["name"]]
 
@@ -556,13 +562,15 @@ def _sync_favourites_to_wishlist(progress=None) -> int:
 
 
 def sync(progress=None) -> None:
-    """Refresh CeX 4K inventory, favourites, and owned standard Blu-ray buyback values."""
+    """Refresh CeX 4K and anime inventory, favourites, and owned standard Blu-ray buyback values."""
     timeout = httpx.Timeout(30.0, connect=10.0)
     headers = {"user-agent": config.USER_AGENT, "accept": "application/json"}
     with httpx.Client(timeout=timeout, headers=headers) as client:
-        if progress:
-            progress("Loading CeX 4K catalogue")
-        products = _catalogue(client, progress)
+        products = []
+        for category, label in CATALOGUE_CATEGORIES.items():
+            if progress:
+                progress(f"Loading CeX {label} catalogue")
+            products.extend(_catalogue(client, category, progress))
         favourite_products = _favourite_products(client, progress)
         with get_session() as session:
             baseline = session.exec(select(CexProduct.id)).first() is None
@@ -578,8 +586,11 @@ def sync(progress=None) -> None:
         session.commit()
 
 
-def page_data(location: str = "", sort: str = "name", page: int = 1) -> dict:
-    if location not in STOCK_LOCATIONS or sort not in CATALOGUE_SORTS or page < 1:
+def page_data(location: str = "", sort: str = "name", page: int = 1,
+              category: str = "4k", changes: str = "all") -> dict:
+    if (location not in STOCK_LOCATIONS or sort not in CATALOGUE_SORTS
+            or category not in CATALOGUE_CATEGORIES or changes not in ("all", *CATALOGUE_CATEGORIES)
+            or page < 1):
         raise ValueError("Invalid CeX catalogue filter")
 
     def available(branches: dict | None) -> bool:
@@ -600,7 +611,7 @@ def page_data(location: str = "", sort: str = "name", page: int = 1) -> dict:
         matches = {item.key: item for item in session.exec(select(CexTitleMatch)).all()}
         events = session.exec(
             select(CexEvent).where(CexEvent.event_type != "sync")
-            .order_by(CexEvent.created_at.desc()).limit(100)
+            .order_by(CexEvent.created_at.desc())
         ).all()
         sync_event = session.exec(
             select(CexEvent).where(CexEvent.event_type == "sync")
@@ -611,7 +622,8 @@ def page_data(location: str = "", sort: str = "name", page: int = 1) -> dict:
                 if product.last_seen >= fresh_after}
     catalogue = [
         {"product": product, "branches": json.loads(product.branch_stock_json or "{}")}
-        for product in products.values() if product.category == "Blu-Ray 4K"
+        for product in products.values()
+        if product.category == ("Blu-Ray 4K" if category == "4k" else "Blu-Ray Anime")
     ]
     catalogue_count = len(catalogue)
     catalogue = [row for row in catalogue if available(row["branches"])]
@@ -705,8 +717,15 @@ def page_data(location: str = "", sort: str = "name", page: int = 1) -> dict:
               if event.event_type in ("new", "stock_added", "price", "stock", "buyback")
               and event.created_at >= datetime.utcnow() - timedelta(days=30)]
     event_rows = []
-    for event in recent[:50]:
+    for event in recent:
         product = all_products.get(event.box_id)
+        event_category = (
+            "4k" if product and product.category == "Blu-Ray 4K"
+            else "anime" if product and product.category == "Blu-Ray Anime"
+            else None
+        )
+        if changes != "all" and event_category != changes:
+            continue
         if event.event_type == "new":
             change = "First observed by this tracker"
         elif event.event_type == "stock_added":
@@ -717,7 +736,19 @@ def page_data(location: str = "", sort: str = "name", page: int = 1) -> dict:
             if was_available and not is_available:
                 change = "Sold out"
             else:
-                continue
+                old = json.loads(event.old_value or "{}")
+                current = json.loads(event.new_value or "{}")
+                branch_changes = []
+                for store in ("Blacktown", "Rouse Hill"):
+                    if old.get(store) != current.get(store):
+                        branch_changes.append(
+                            f"{store}: {'Back in stock' if current.get(store) else 'Sold out'}"
+                        )
+                if old.get("online") != current.get("online"):
+                    branch_changes.append(
+                        f"Online: {'Back in stock' if current.get('online') else 'Sold out'}"
+                    )
+                change = "; ".join(branch_changes) or "Availability changed"
         elif event.event_type == "price":
             change = f"{_price_text(event.old_value)} to {_price_text(event.new_value)}"
         elif event.event_type == "buyback":
@@ -729,13 +760,21 @@ def page_data(location: str = "", sort: str = "name", page: int = 1) -> dict:
             )
         else:
             continue
-        event_rows.append({"event": event, "product": product, "change": change})
+        event_rows.append({
+            "event": event, "product": product, "change": change,
+            "category": event_category,
+        })
+        if len(event_rows) >= 50:
+            break
     return {
         "exporter_bookmarklet": CEX_FAVOURITES_EXPORTER,
         "location": location,
         "stock_locations": STOCK_LOCATIONS,
         "catalogue_sort": sort,
         "catalogue_sorts": CATALOGUE_SORTS,
+        "catalogue_category": category,
+        "catalogue_categories": CATALOGUE_CATEGORIES,
+        "changes_category": changes,
         "catalogue": catalogue,
         "catalogue_filtered_count": filtered_count,
         "catalogue_page": page,
@@ -747,4 +786,8 @@ def page_data(location: str = "", sort: str = "name", page: int = 1) -> dict:
         "last_sync": sync_event.created_at if sync_event else None,
         "stale": not sync_event or sync_event.created_at < datetime.utcnow() - timedelta(hours=36),
         "catalogue_count": catalogue_count,
+        "catalogue_counts": {
+            "4k": len([p for p in products.values() if p.category == "Blu-Ray 4K"]),
+            "anime": len([p for p in products.values() if p.category == "Blu-Ray Anime"]),
+        },
     }
