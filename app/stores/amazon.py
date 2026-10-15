@@ -113,5 +113,16 @@ def search(q: Query) -> list[Offer]:
 
 
 def bargains() -> list[Offer]:
-    return [offer for offer in sorted(_search("4K"), key=lambda item: item.price or 1e9)
-            if is_4k(offer.title) and offer.price is not None][:10]
+    offers = []
+    seen: set[str] = set()
+    for result in _search("4K"):
+        if not is_4k(result.title):
+            continue
+        asin = _asin(result.url)
+        if not asin or asin in seen:
+            continue
+        seen.add(asin)
+        offer = refresh(result.url)
+        if offer and is_4k(offer.title) and offer.price is not None:
+            offers.append(offer)
+    return sorted(offers, key=lambda item: item.price or 0)[:10]
