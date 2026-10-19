@@ -14,10 +14,10 @@ from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse, Stre
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
-from . import bestblurays, bluray, cex, collection_importer, config, fetch, jobs, notify
+from . import bestblurays, bluray, cex, cex_alerts, collection_importer, config, fetch, jobs, notify
 from .stores import MODULES
 from .stores.base import MATCH_MODES, parse_upcs
-from .db import (STORE_NAMES, STORES, CexFavourite, CexTitleMatch, ExcludedUrl, Listing, PricePoint, Title,
+from .db import (STORE_NAMES, STORES, CexAlertState, CexFavourite, CexStockAlert, CexTitleMatch, ExcludedUrl, Listing, PricePoint, Title,
                  enabled_stores, get_session, get_setting, init_db, select, set_setting)
 from .tracker import match_key, shipping_for, total_for, update_best
 
@@ -183,7 +183,7 @@ def delete_selected(ids: list[int] = Form([])):
                 favourite.title_id = None
                 favourite.wishlist_excluded = True
                 s.add(favourite)
-            for model in (Listing, PricePoint, ExcludedUrl, CexTitleMatch):
+            for model in (Listing, PricePoint, ExcludedUrl, CexTitleMatch, CexAlertState, CexStockAlert):
                 for row in s.exec(select(model).where(model.title_id.in_(ids))).all():
                     s.delete(row)
             for t in s.exec(select(Title).where(Title.id.in_(ids))).all():
@@ -317,7 +317,7 @@ def collection_remove(tid: int):
             for match in session.exec(select(CexTitleMatch).where(CexTitleMatch.title_id == tid)).all():
                 session.delete(match)
         else:
-            for model in (Listing, PricePoint, ExcludedUrl, CexTitleMatch):
+            for model in (Listing, PricePoint, ExcludedUrl, CexTitleMatch, CexAlertState, CexStockAlert):
                 for row in session.exec(select(model).where(model.title_id == tid)).all():
                     session.delete(row)
             session.delete(title)
@@ -645,7 +645,7 @@ def title_check(tid: int):
 @app.post("/title/{tid}/delete")
 def title_delete(tid: int):
     with get_session() as s:
-        for model in (Listing, PricePoint, ExcludedUrl, CexTitleMatch):
+        for model in (Listing, PricePoint, ExcludedUrl, CexTitleMatch, CexAlertState, CexStockAlert):
             for row in s.exec(select(model).where(model.title_id == tid)).all():
                 s.delete(row)
         t = s.get(Title, tid)
@@ -804,10 +804,11 @@ def collection_import_start(url: str = Form(...)):
 # -------------------------------------------------------------- settings ---
 
 @app.get("/settings", response_class=HTMLResponse)
-def settings_page(request: Request, msg: str = ""):
+def settings_page(request: Request, msg: str = "", msg_type: str = "ok"):
     return render(request, "settings.html", all_stores=STORES, enabled=enabled_stores(),
                   apprise=get_setting("apprise_urls", ""), env_apprise=len(config.APPRISE_URLS),
-                  cfg=config, msg=msg, next_run=jobs.next_run())
+                  cex_alerts=cex_alerts.settings(), waha_test_message=notify.WAHA_TEST_MESSAGE,
+                  cfg=config, msg=msg, msg_type=msg_type, next_run=jobs.next_run())
 
 
 @app.post("/settings")
@@ -817,6 +818,31 @@ async def settings_save(request: Request):
     set_setting("enabled_stores", ",".join(chosen))
     set_setting("apprise_urls", str(form.get("apprise_urls", "")).strip())
     return back("/settings?msg=Saved")
+
+
+@app.post("/settings/cex-alerts")
+async def settings_cex_alerts(request: Request):
+    form = await request.form()
+    enabled = bool(form.get("enabled"))
+    locations = form.getlist("locations")
+    if any(loc not in cex_alerts.LOCATIONS for loc in locations):
+        raise HTTPException(400, "Unknown CeX alert location")
+    if enabled:
+        if not locations:
+            raise HTTPException(400, "Choose at least one alert location")
+        if error := notify.waha_config_error():
+            raise HTTPException(400, error)
+    cex_alerts.configure(enabled, locations)
+    return back("/settings?msg=CeX+alert+settings+saved")
+
+
+@app.post("/settings/test-waha")
+def settings_test_waha():
+    try:
+        notify.send_waha(notify.WAHA_TEST_MESSAGE)
+    except notify.WahaDeliveryError as exc:
+        return back("/settings?msg=" + quote_plus(f"WAHA test failed: {exc}") + "&msg_type=error")
+    return back("/settings?msg=WAHA+test+notification+sent")
 
 
 @app.post("/settings/test-notify")

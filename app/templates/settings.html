@@ -2,7 +2,7 @@
 {% block title %}Settings{% endblock %}
 {% block content %}
 <h1>Settings</h1>
-{% if msg %}<div class="alert ok">{{ msg }}</div>{% endif %}
+{% if msg %}<div class="alert {{ msg_type }}">{{ msg }}</div>{% endif %}
 <form method="post" class="stack narrow">
   <fieldset>
     <legend>Stores to track</legend>
@@ -24,6 +24,32 @@
   </div>
 </form>
 <form method="post" action="/settings/test-notify" class="inline"><button class="btn">Send test alert</button></form>
+
+<h2>CeX wishlist availability alerts (WhatsApp / WAHA)</h2>
+<form method="post" action="/settings/cex-alerts" class="stack narrow">
+  <p class="small muted">Send the title, price, location and CeX link to your configured WhatsApp chat when a confirmed, unpurchased 4K wishlist match becomes available. Each location is tracked separately. No price or buyback alerts.</p>
+  <p class="small muted">The first successful CeX refresh after enabling alerts establishes a baseline without sending messages. Later restocks and newly available matching listings trigger alerts. Checks run during manual and daily 05:00 Sydney CeX refreshes, not continuously.</p>
+  {% if cex_alerts.config_error %}<div class="alert warn">{{ cex_alerts.config_error }} Set WAHA_API_KEY too if your WAHA server requires it.</div>
+  {% else %}
+  <p class="small">WAHA: <code>{{ cfg.WAHA_URL }}</code> · session <code>{{ cfg.WAHA_SESSION }}</code> · recipient <code>{{ cfg.WAHA_CHAT_ID }}</code></p>
+  {% endif %}
+  <label class="check"><input type="checkbox" name="enabled" {% if cex_alerts.enabled %}checked{% endif %}> Enable CeX wishlist WhatsApp alerts</label>
+  <fieldset>
+    <legend>Alert locations</legend>
+    {% for value, label in cex_alerts.choices.items() %}
+    <label class="check"><input type="checkbox" name="locations" value="{{ value }}" {% if value in cex_alerts.locations %}checked{% endif %}> {{ label }}</label>
+    {% endfor %}
+  </fieldset>
+  <p class="small muted">Saving enables automatic messages to the recipient above. Changing locations or disabling alerts clears pending deliveries and starts a new baseline. Connection settings and the API key are configured only through the container environment.</p>
+  <p class="small">{{ cex_alerts.pending }} pending delivery(s).{% if cex_alerts.error %} Last delivery error: {{ cex_alerts.error }}{% endif %}</p>
+  <div><button class="btn primary">Save CeX alert settings</button></div>
+</form>
+{% if not cex_alerts.config_error %}
+<form method="post" action="/settings/test-waha" class="stack narrow">
+  <p class="small">Send to <code>{{ cfg.WAHA_CHAT_ID }}</code>: <q>{{ waha_test_message }}</q></p>
+  <div><button class="btn">Send this WhatsApp test</button></div>
+</form>
+{% endif %}
 
 <h2>Environment</h2>
 <dl class="facts">

@@ -18,6 +18,14 @@ services:
       #   discord://webhook_id/webhook_token
       #   tgram://bot_token/chat_id
       APPRISE_URLS: ""
+      # Optional WhatsApp restock alerts via WAHA on a shared Docker network.
+      # Configure in .env, then enable alerts in Settings.
+      WAHA_URL: "${WAHA_URL:-}"
+      WAHA_SESSION: "${WAHA_SESSION:-default}"
+      WAHA_CHAT_ID: "${WAHA_CHAT_ID:-}"
+      WAHA_API_KEY: "${WAHA_API_KEY:-}"
+      CEX_STOCK_ALERTS: "${CEX_STOCK_ALERTS:-false}"
+      CEX_ALERT_LOCATIONS: "${CEX_ALERT_LOCATIONS:-Blacktown,Rouse Hill,online}"
       # Used for links in alerts, e.g. http://docker-host:8000
       BASE_URL: ""
       # Delivery estimates (AUD) added to retailer prices

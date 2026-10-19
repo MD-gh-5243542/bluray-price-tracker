@@ -25,6 +25,13 @@ USE_BROWSER = _bool("USE_BROWSER", True)
 # Apprise notification URLs, comma separated, e.g.
 # "ntfy://ntfy.sh/my-topic,discord://id/token,mailto://user:pass@gmail.com"
 APPRISE_URLS = [u.strip() for u in os.getenv("APPRISE_URLS", "").split(",") if u.strip()]
+# WAHA credentials stay in the container environment, never in the settings form.
+WAHA_URL = os.getenv("WAHA_URL", "").strip().rstrip("/")
+WAHA_SESSION = os.getenv("WAHA_SESSION", "default").strip()
+WAHA_CHAT_ID = os.getenv("WAHA_CHAT_ID", "").strip()
+WAHA_API_KEY = os.getenv("WAHA_API_KEY", "")
+CEX_STOCK_ALERTS = _bool("CEX_STOCK_ALERTS", False)
+CEX_ALERT_LOCATIONS = os.getenv("CEX_ALERT_LOCATIONS", "Blacktown,Rouse Hill,online")
 # Public base URL of this app, used for links in notifications.
 BASE_URL = os.getenv("BASE_URL", "").rstrip("/")
 

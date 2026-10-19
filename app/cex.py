@@ -584,6 +584,9 @@ def sync(progress=None) -> None:
             old_value=None, new_value=str(len(products)), created_at=datetime.utcnow(),
         ))
         session.commit()
+    from . import cex_alerts
+
+    cex_alerts.refresh()
 
 
 def page_data(location: str = "", sort: str = "name", page: int = 1,

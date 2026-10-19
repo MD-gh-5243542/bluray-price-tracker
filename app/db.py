@@ -169,6 +169,24 @@ class Setting(SQLModel, table=True):
     value: str
 
 
+class CexAlertState(SQLModel, table=True):
+    title_id: int = Field(primary_key=True, foreign_key="title.id")
+    fingerprint: str
+    snapshot_json: str
+
+
+class CexStockAlert(SQLModel, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    title_id: int = Field(foreign_key="title.id", index=True)
+    box_id: str
+    locations_json: str
+    status: str = Field(default="pending", index=True)
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+    sent_at: Optional[datetime] = None
+    attempts: int = 0
+    error: Optional[str] = None
+
+
 engine = create_engine(
     f"sqlite:///{DB_PATH}", connect_args={"check_same_thread": False, "timeout": 30}
 )
@@ -350,7 +368,7 @@ def enabled_stores() -> list[str]:
 
 __all__ = [
     "Title", "Listing", "ExcludedUrl", "PricePoint", "CexProduct", "CexFavourite", "CexEvent",
-    "CexTitleMatch", "Setting", "engine",
+    "CexTitleMatch", "CexAlertState", "CexStockAlert", "Setting", "engine",
     "init_db", "get_session", "get_setting", "set_setting", "enabled_stores",
     "STORES", "STORE_NAMES", "select",
 ]

@@ -37,6 +37,7 @@ A self-hosted wishlist for 4K Ultra HD Blu-rays. It tracks the cheapest **delive
 - A running check can be cancelled from the header. Queued checks are dropped immediately; the running task stops after its current store or CeX request, and prices already fetched are kept.
 - Store prices show item price plus nonzero postage in parentheses; “Best” remains the delivered total. CeX pickup has no shipping charge; online items priced at or below $50 add $4 each, while items over $50 ship free. Price-history chart, lowest-ever price and target price.
 - **Alerts** via [Apprise](https://github.com/caronc/apprise/wiki) (ntfy, Discord, Telegram, email, Teams, Pushover…) when a title hits your target or a new low.
+- **WhatsApp CeX restock alerts** via your own [WAHA](https://waha.devlike.pro/) container. Opt in through Settings; track Blacktown, Rouse Hill and online separately for confirmed, unpurchased 4K wishlist titles. Price alerts through Apprise are unchanged.
 - CSV export.
 - **Bargains** page showing the ten cheapest in-stock 4K titles discovered in each enabled retailer catalogue (not limited to the wishlist).
 
@@ -51,12 +52,61 @@ Data (SQLite) lives in `./data`, so back that folder up.
 
 > There's no login. Keep it on your LAN, or put it behind your reverse proxy with authentication.
 
+### WhatsApp restock alerts with WAHA
+
+Connect the tracker and WAHA containers to the same user-defined Docker network.
+Set these variables in your deployment environment (or a local, uncommitted `.env`
+when using the supplied Compose file), then recreate the tracker container:
+
+```dotenv
+WAHA_URL=http://waha:3000
+WAHA_SESSION=default
+WAHA_CHAT_ID=61400111222@c.us
+WAHA_API_KEY=your-waha-api-key
+```
+
+Use WAHA's actual service name, authenticated session name and destination chat ID
+(individual `...@c.us` or group `...@g.us`). `localhost` inside the tracker means
+the tracker container, not WAHA. Being on the same host does not automatically
+put both containers on the same network. Keep the API key out of GitHub and do
+not expose WAHA's port publicly. Authenticate the WhatsApp session in WAHA first.
+
+In **Settings -> CeX wishlist availability alerts**, choose locations and enable.
+The same section previews the recipient and text for an optional WhatsApp test
+message; click **Send this WhatsApp test** to check your connection.
+The first successful CeX refresh establishes a silent baseline for each eligible
+wishlist title; subsequent restocks and newly observed matching in-stock releases
+send the title, listing, AUD price, location(s) and CeX product link through
+`POST /api/sendText`. Each location is independent: Blacktown arriving still
+alerts even if Rouse Hill or online was already in stock. Owned, non-4K,
+unconfirmed and low-confidence matches are excluded. Anime favourites remain
+CeX-only unless they are eligible 4K wishlist releases.
+
+Checks happen on manual CeX refreshes and the daily **05:00 Australia/Sydney**
+refresh, not in real time. Stock must be observed unavailable before an existing
+listing can restock; unknown stock alone does not create a restock. Changing
+alert locations or the target chat, or re-enabling after a disabled refresh,
+establishes a new baseline. No price or buyback changes are sent.
+
+Snapshots and the delivery queue persist in SQLite across restarts. Failed
+deliveries are shown in Settings and retried on the next successful CeX refresh,
+only if the title is still wanted and the selected stock is still available.
+Disabling alerts cancels pending messages. Unchanged stock does not repeat.
+Delivery is at-least-once: a timeout after WAHA has accepted a message, or a crash
+before recording success, can cause a duplicate on retry.
+
 ### Configuration (environment variables)
 | Variable | Default | |
 |---|---|---|
 | `SCHEDULED_CHECKS` | `true` | enables the daily 05:00 Australia/Sydney refresh; set `false` to disable |
 | `CHECK_INTERVAL_HOURS` | `12` | legacy compatibility, only used if `SCHEDULED_CHECKS` is unset: `0` disables; positive values enable the daily 05:00 schedule |
 | `REQUEST_DELAY` | `2.5` | seconds between requests to the same site |
+| `WAHA_URL` | empty | WAHA HTTP(S) base URL reachable from the tracker container |
+| `WAHA_SESSION` | `default` | authenticated WAHA session |
+| `WAHA_CHAT_ID` | empty | WhatsApp destination chat ID |
+| `WAHA_API_KEY` | empty | WAHA API key sent as `X-Api-Key`; only optional for servers without API authentication |
+| `CEX_STOCK_ALERTS` | `false` | default opt-in for CeX WhatsApp alerts; saved Settings selection overrides this |
+| `CEX_ALERT_LOCATIONS` | `Blacktown,Rouse Hill,online` | default locations; saved Settings selection overrides this |
 | `APPRISE_URLS` | – | comma-separated; can also be set in Settings |
 | `BASE_URL` | – | e.g. `http://nas:8000`, used for links in alerts |
 | `SHIPPING_EZYDVD` / `FREE_SHIPPING_OVER_EZYDVD` | `6.95` / `80` | delivery estimate |
