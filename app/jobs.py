@@ -15,6 +15,8 @@ log = logging.getLogger(__name__)
 _executor = ThreadPoolExecutor(max_workers=1, thread_name_prefix="scraper")
 _lock = threading.Lock()
 _pending: set[Future] = set()
+_cex_lock = threading.Lock()
+_cex_future: Future | None = None
 status = {"running": None, "detail": "", "queue": 0, "last": None, "last_error": None,
           "cancelling": False}
 _scheduler = BackgroundScheduler(timezone="Australia/Sydney")
@@ -74,15 +76,17 @@ def queue_check_all():
 
 
 def queue_daily_refresh():
-    def refresh(progress):
-        tracker.check_all(progress=progress)
-        cex.sync(progress=progress)
-
-    submit("Daily price and CeX refresh", refresh)
+    submit("Daily price refresh", tracker.check_all)
 
 
 def queue_cex_refresh():
-    submit("Refreshing CeX stock", cex.sync)
+    global _cex_future
+    with _cex_lock:
+        if _cex_future is not None and not _cex_future.done():
+            log.info("CeX refresh already running or queued; skipping duplicate")
+            return _cex_future
+        _cex_future = submit("Refreshing CeX stock", cex.sync)
+        return _cex_future
 
 
 def queue_check_title(title_id: int, stores: list[str] | None = None):
@@ -114,11 +118,14 @@ def start_scheduler():
     if config.SCHEDULED_CHECKS:
         _scheduler.add_job(queue_daily_refresh, "cron", hour=5, minute=0,
                            id="daily_refresh", replace_existing=True)
+        _scheduler.add_job(queue_cex_refresh, "cron", minute=5, second=0,
+                           id="cex_refresh", replace_existing=True,
+                           coalesce=True, misfire_grace_time=300)
         _scheduler.start()
 
 
-def next_run():
-    job = _scheduler.get_job("check_all") if _scheduler.running else None
+def next_run(job_id: str = "daily_refresh"):
+    job = _scheduler.get_job(job_id) if _scheduler.running else None
     return job.next_run_time if job else None
 
 

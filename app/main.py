@@ -238,7 +238,7 @@ def cex_page(request: Request, msg: str = "", msg_type: str = "ok",
             or changes not in ("all", *cex.CATALOGUE_CATEGORIES)):
         raise HTTPException(400, "Unknown CeX stock location or sort order")
     return render(request, "cex.html", **cex.page_data(location, sort, page, category, changes),
-                  msg=msg, msg_type=msg_type)
+                  next_cex_run=jobs.next_run("cex_refresh"), msg=msg, msg_type=msg_type)
 
 
 @app.post("/cex/refresh")
@@ -808,7 +808,8 @@ def settings_page(request: Request, msg: str = "", msg_type: str = "ok"):
     return render(request, "settings.html", all_stores=STORES, enabled=enabled_stores(),
                   apprise=get_setting("apprise_urls", ""), env_apprise=len(config.APPRISE_URLS),
                   cex_alerts=cex_alerts.settings(), waha_test_message=notify.WAHA_TEST_MESSAGE,
-                  cfg=config, msg=msg, msg_type=msg_type, next_run=jobs.next_run())
+                  cfg=config, msg=msg, msg_type=msg_type, next_run=jobs.next_run(),
+                  next_cex_run=jobs.next_run("cex_refresh"))
 
 
 @app.post("/settings")

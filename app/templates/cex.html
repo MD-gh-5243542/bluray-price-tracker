@@ -19,6 +19,7 @@
 
 <p class="muted small">
   {% if last_sync %}Last refreshed {{ last_sync|local }}{% else %}CeX data has not been refreshed yet{% endif %}
+  {% if next_cex_run %}· next automatic refresh {{ next_cex_run.strftime('%a %d %b %H:%M') }} Sydney time{% endif %}
   · {{ catalogue_counts['4k'] }} 4K and {{ catalogue_counts['anime'] }} anime catalogue items cached
   · Delivery is charged per item: $4 for items at or below $50; items over $50 ship free.
 </p>

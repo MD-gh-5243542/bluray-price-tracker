@@ -258,6 +258,18 @@ class CexAlertsTests(unittest.TestCase):
         response = client.post("/settings/test-waha", follow_redirects=False)
         self.assertIn("WAHA+test+failed", response.headers["location"])
 
+    def test_cex_and_settings_show_hourly_next_refresh(self):
+        from zoneinfo import ZoneInfo
+        from app.main import app
+        next_cex = datetime(2026, 10, 19, 16, 5, tzinfo=ZoneInfo("Australia/Sydney"))
+        with patch("app.jobs.next_run", return_value=next_cex):
+            client = TestClient(app)
+            cex_page = client.get("/cex")
+            settings_page = client.get("/settings")
+        self.assertEqual(cex_page.status_code, 200)
+        self.assertIn("next automatic refresh Mon 19 Oct 16:05 Sydney time", cex_page.text)
+        self.assertIn("hourly at :05 Australia/Sydney", settings_page.text)
+
     def test_defaults_are_disabled_and_schema_initialization_is_repeatable(self):
         with patch.object(config, "CEX_STOCK_ALERTS", False):
             self.assertFalse(cex_alerts.settings()["enabled"])

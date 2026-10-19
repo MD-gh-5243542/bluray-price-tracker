@@ -14,7 +14,7 @@ DATA_DIR.mkdir(parents=True, exist_ok=True)
 DB_PATH = DATA_DIR / "tracker.db"
 
 # Legacy setting: zero still disables scheduled checks; positive values enable the
-# daily 05:00 Australia/Sydney schedule.
+# daily 05:00 prices and hourly :05 CeX Australia/Sydney schedules.
 CHECK_INTERVAL_HOURS = float(os.getenv("CHECK_INTERVAL_HOURS", "12"))
 SCHEDULED_CHECKS = _bool("SCHEDULED_CHECKS", CHECK_INTERVAL_HOURS > 0)
 # Seconds to wait between requests to the same site (be polite, avoid bans).
