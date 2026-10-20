@@ -268,7 +268,7 @@ class CexAlertsTests(unittest.TestCase):
             settings_page = client.get("/settings")
         self.assertEqual(cex_page.status_code, 200)
         self.assertIn("next automatic refresh Mon 19 Oct 16:05 Sydney time", cex_page.text)
-        self.assertIn("hourly at :05 Australia/Sydney", settings_page.text)
+        self.assertIn("hourly at :05 (catalogue and wishlist stock)", settings_page.text)
 
     def test_defaults_are_disabled_and_schema_initialization_is_repeatable(self):
         with patch.object(config, "CEX_STOCK_ALERTS", False):

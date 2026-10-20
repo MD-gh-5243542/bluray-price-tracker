@@ -28,7 +28,7 @@
 <h2>CeX wishlist availability alerts (WhatsApp / WAHA)</h2>
 <form method="post" action="/settings/cex-alerts" class="stack narrow">
   <p class="small muted">Send the title, price, location and CeX link to your configured WhatsApp chat when a confirmed, unpurchased 4K wishlist match becomes available. Each location is tracked separately. No price or buyback alerts.</p>
-  <p class="small muted">The first successful CeX refresh after enabling alerts establishes a baseline without sending messages. Later restocks and newly available matching listings trigger alerts. Checks run during manual CeX refreshes and automatically at five past every hour, Sydney time, when scheduled checks are enabled.</p>
+  <p class="small muted">The first successful CeX refresh after enabling alerts establishes a baseline without sending messages. Later restocks and newly available matching listings trigger alerts. Checks run during manual CeX refreshes, the hourly scheduled CeX refresh at :05, and the daily full CeX refresh at 05:35 (Sydney time) when scheduled checks are enabled.</p>
   {% if cex_alerts.config_error %}<div class="alert warn">{{ cex_alerts.config_error }} Set WAHA_API_KEY too if your WAHA server requires it.</div>
   {% else %}
   <p class="small">WAHA: <code>{{ cfg.WAHA_URL }}</code> · session <code>{{ cfg.WAHA_SESSION }}</code> · recipient <code>{{ cfg.WAHA_CHAT_ID }}</code></p>
@@ -54,7 +54,7 @@
 <h2>Environment</h2>
 <dl class="facts">
   <dt>Scheduled price checks</dt><dd>{% if cfg.SCHEDULED_CHECKS %}daily at 05:00 Australia/Sydney{% if next_run %} (next {{ next_run.strftime('%a %d %b %H:%M') }}){% endif %}{% else %}disabled{% endif %}</dd>
-  <dt>Scheduled CeX refresh</dt><dd>{% if cfg.SCHEDULED_CHECKS %}hourly at :05 Australia/Sydney{% if next_cex_run %} (next {{ next_cex_run.strftime('%a %d %b %H:%M') }}){% endif %}{% else %}disabled{% endif %}</dd>
+  <dt>Scheduled CeX refresh</dt><dd>{% if cfg.SCHEDULED_CHECKS %}hourly at :05 (catalogue and wishlist stock) + daily full refresh at 05:35 Australia/Sydney{% if next_cex_run %} (next hourly {{ next_cex_run.strftime('%a %d %b %H:%M') }}){% endif %}{% else %}disabled{% endif %}</dd>
   <dt>Request delay</dt><dd>{{ cfg.REQUEST_DELAY }} s per site</dd>
   <dt>Headless browser</dt><dd>{{ 'enabled' if cfg.USE_BROWSER else 'disabled (some Amazon pages may be unavailable)' }}</dd>
   <dt>Delivery estimates</dt><dd>

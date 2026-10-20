@@ -20,9 +20,9 @@ A self-hosted wishlist for 4K Ultra HD Blu-rays. It tracks the cheapest **delive
 - **Collection** page for owned releases, including standard Blu-rays and 4K discs. Import a public blu-ray.com collection link; matching wishlist releases are marked as owned, and regular Blu-rays stay out of price scans.
 - **Add titles** by searching blu-ray.com or pasting a 4K blu-ray.com URL. Pick the exact edition you want (e.g. the JB Hi-Fi SteelBook vs the standard release).
 - **UHD tiers**: use "Check BestBluRays UHD tier" on a 4K title's details page, then confirm the matching label/release to save its tier, notes and source link. Lookups are manual, not part of price refreshes. Different editions can have different tiers; the saved rating does not apply to every retailer offer. Failed lookups keep existing ratings, and changing the linked release or main barcode clears the tier.
-- Prices refresh automatically every day at 05:00 Australia/Sydney. The CeX catalogue refreshes separately at **five past every hour** (00:05, 01:05, etc.), Sydney time. You can also check prices manually: every title, only the titles you tick on the wishlist (“Check selected”), or one title (“Check now”).
+- Prices refresh automatically every day at 05:00 Australia/Sydney. CeX runs an **hourly stock refresh at five past every hour** (00:05, 01:05, etc.) plus a **daily full CeX refresh at 05:35** for favourites and standard Blu-ray buyback data. You can also check prices manually: every title, only the titles you tick on the wishlist (“Check selected”), or one title (“Check now”).
 - **CeX** page compares in-stock 4K wishlist matches with retailer prices, tracks 4K and Anime Blu-ray availability changes, includes Blacktown/Rouse Hill availability, and shows CeX cash/voucher offers of at least $3 for owned standard Blu-rays. Recent CeX changes show new listings and availability only, not selling-price or buyback-price changes. The compact page keeps recent changes at the top, with category filters and a combined category/store/price catalogue browser; favourites, wishlist opportunities and trade-in offers are collapsible below. Import up to 1,000 favourites by pasting product links copied from the logged-in CeX page; 4K favourites are added to the main wishlist (pending blu-ray.com release confirmation), while standard Blu-rays stay in the CeX favourites list. The tracker refreshes them from CeX's public catalogue and does not store your CeX login. CeX prices and trade-in offers can change after inspection. Online delivery is charged per item: $4 for items priced at or below $50, and free for an individual item priced over $50.
-- CeX does not expose a stock-added timestamp. “First observed” means the tracker first detected a product, not that CeX added it on that date. The hourly CeX refresh scans the full CeX 4K and Blu-ray Anime catalogues and checks owned standard Blu-rays for buyback values.
+- CeX does not expose a stock-added timestamp. “First observed” means the tracker first detected a product, not that CeX added it on that date. The hourly CeX refresh scans 4K and Anime catalogue stock only; the daily full CeX refresh at 05:35 adds favourites and owned standard Blu-ray buyback scans.
 - Browse the **4K Blu-rays** or **Anime Blu-rays** catalogue on the CeX page, filter to **Blacktown**, **Rouse Hill** or **Either preferred store**, and sort by title or price. Store filters also narrow favourites and wishlist opportunities to confirmed local 4K stock; stale/unknown stock is excluded. Trade-in offers and recent changes remain unfiltered. Catalogue results are paginated, not limited to your wishlist. Anime DVDs remain excluded.
 - Per-store controls: “Wrong match” (exclude and re-search), pick another result, or pin an exact product URL.
 - eBay price checking is currently paused because its bot protection makes scans unreliable. Existing eBay price-history data is retained.
@@ -82,10 +82,11 @@ alerts even if Rouse Hill or online was already in stock. Owned, non-4K,
 unconfirmed and low-confidence matches are excluded. Anime favourites remain
 CeX-only unless they are eligible 4K wishlist releases.
 
-Checks happen on manual CeX refreshes and automatically **at :05 every hour,
-Australia/Sydney**, not in real time. Jobs share one worker: if it is busy the CeX
-refresh waits, and further CeX refresh requests are coalesced while one is queued
-or running. Stock must be observed unavailable before an existing
+Checks happen on manual CeX refreshes, the automatic hourly **:05 stock refresh**
+and the daily **05:35 full CeX refresh** (Australia/Sydney), not in real time.
+Jobs share one worker: if it is busy the CeX refresh waits, and further hourly
+CeX refresh requests are coalesced while one is queued or running. Stock must
+be observed unavailable before an existing
 listing can restock; unknown stock alone does not create a restock. Changing
 alert locations or the target chat, or re-enabling after a disabled refresh,
 establishes a new baseline. No price or buyback changes are sent.
@@ -100,8 +101,8 @@ before recording success, can cause a duplicate on retry.
 ### Configuration (environment variables)
 | Variable | Default | |
 |---|---|---|
-| `SCHEDULED_CHECKS` | `true` | enables daily 05:00 price checks and hourly :05 CeX refreshes (Australia/Sydney); set `false` to disable both |
-| `CHECK_INTERVAL_HOURS` | `12` | legacy compatibility, only used if `SCHEDULED_CHECKS` is unset: `0` disables; positive values enable the daily price and hourly CeX schedules |
+| `SCHEDULED_CHECKS` | `true` | enables daily 05:00 price checks, hourly :05 CeX stock refreshes and daily 05:35 full CeX refreshes (Australia/Sydney); set `false` to disable all schedules |
+| `CHECK_INTERVAL_HOURS` | `12` | legacy compatibility, only used if `SCHEDULED_CHECKS` is unset: `0` disables; positive values enable the scheduled jobs above |
 | `REQUEST_DELAY` | `2.5` | seconds between requests to the same site |
 | `WAHA_URL` | empty | WAHA HTTP(S) base URL reachable from the tracker container |
 | `WAHA_SESSION` | `default` | authenticated WAHA session |

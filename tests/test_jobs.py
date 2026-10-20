@@ -19,7 +19,8 @@ class SchedulerTests(unittest.TestCase):
         start = self.scheduler.start
         patch.object(self.scheduler, "start", side_effect=lambda: start(paused=True)).start()
         patch.object(jobs, "queue_daily_refresh").start()
-        patch.object(jobs, "queue_cex_refresh").start()
+        patch.object(jobs, "queue_cex_refresh_scheduled").start()
+        patch.object(jobs, "queue_cex_refresh_full_daily").start()
 
     def stop_scheduler(self):
         if self.scheduler.running:
@@ -29,6 +30,7 @@ class SchedulerTests(unittest.TestCase):
         jobs.start_scheduler()
         cex = self.scheduler.get_job("cex_refresh")
         daily = self.scheduler.get_job("daily_refresh")
+        full = self.scheduler.get_job("cex_refresh_full_daily")
         tz = ZoneInfo("Australia/Sydney")
         for month in (1, 7, 10):
             now = datetime(2026, month, 19, 4, 59, tzinfo=tz)
@@ -36,6 +38,8 @@ class SchedulerTests(unittest.TestCase):
                              now.replace(hour=5, minute=5))
             self.assertEqual(daily.trigger.get_next_fire_time(None, now),
                              now.replace(hour=5, minute=0))
+            self.assertEqual(full.trigger.get_next_fire_time(None, now),
+                             now.replace(hour=5, minute=35))
             now = now.replace(hour=5, minute=5, second=1)
             self.assertEqual(cex.trigger.get_next_fire_time(None, now),
                              now.replace(hour=6, minute=5, second=0))
@@ -55,29 +59,46 @@ class SchedulerTests(unittest.TestCase):
 
 class QueueTests(unittest.TestCase):
     @patch("app.jobs.submit")
-    def test_cex_refresh_coalesces_queued_or_running_work(self, submit):
+    def test_scheduled_cex_refresh_coalesces_queued_or_running_work(self, submit):
         first, second = Future(), Future()
         submit.side_effect = [first, second]
         with patch.object(jobs, "_cex_future", None):
-            self.assertIs(jobs.queue_cex_refresh(), first)
-            self.assertIs(jobs.queue_cex_refresh(), first)
-            submit.assert_called_once_with("Refreshing CeX stock", jobs.cex.sync)
+            self.assertIs(jobs.queue_cex_refresh_scheduled(), first)
+            self.assertIs(jobs.queue_cex_refresh_scheduled(), first)
+            submit.assert_called_once_with(
+                "Refreshing CeX stock (hourly)", jobs.cex.sync,
+                include_favourites=False, include_buyback=False,
+            )
             first.set_result(None)
-            self.assertIs(jobs.queue_cex_refresh(), second)
+            self.assertIs(jobs.queue_cex_refresh_scheduled(), second)
         self.assertEqual(submit.call_count, 2)
 
     @patch("app.jobs.submit")
-    def test_cancelled_cex_refresh_can_be_queued_again(self, submit):
+    def test_cancelled_scheduled_cex_refresh_can_be_queued_again(self, submit):
         cancelled = Future()
         cancelled.cancel()
         with patch.object(jobs, "_cex_future", cancelled):
-            jobs.queue_cex_refresh()
-        submit.assert_called_once_with("Refreshing CeX stock", jobs.cex.sync)
+            jobs.queue_cex_refresh_scheduled()
+        submit.assert_called_once_with(
+            "Refreshing CeX stock (hourly)", jobs.cex.sync,
+            include_favourites=False, include_buyback=False,
+        )
 
     @patch("app.jobs.submit")
     def test_daily_job_only_queues_price_checks(self, submit):
         jobs.queue_daily_refresh()
         submit.assert_called_once_with("Daily price refresh", jobs.tracker.check_all)
+
+    @patch("app.jobs.submit")
+    def test_manual_and_daily_full_cex_refresh_include_favourites_and_buyback(self, submit):
+        jobs.queue_cex_refresh()
+        jobs.queue_cex_refresh_full_daily()
+        self.assertEqual(submit.call_args_list[0].args[:2], ("Refreshing CeX stock", jobs.cex.sync))
+        self.assertEqual(submit.call_args_list[0].kwargs,
+                         {"include_favourites": True, "include_buyback": True})
+        self.assertEqual(submit.call_args_list[1].args[:2], ("Refreshing CeX stock", jobs.cex.sync))
+        self.assertEqual(submit.call_args_list[1].kwargs,
+                         {"include_favourites": True, "include_buyback": True})
 
 
 if __name__ == "__main__":

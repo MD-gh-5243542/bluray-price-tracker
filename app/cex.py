@@ -1,6 +1,7 @@
 """CeX AU catalogue monitoring and collection buyback matching."""
 import json
 import re
+import time
 from datetime import datetime, timedelta
 from urllib.parse import parse_qs, urlencode, urlsplit
 
@@ -171,6 +172,29 @@ def _normalise_hit(hit: dict) -> dict:
     }
 
 
+def _post_with_rate_limit_retry(client: httpx.Client, url: str, body: dict, *,
+                                context: str) -> httpx.Response:
+    delay = 2.0
+    for attempt in range(6):
+        response = client.post(url, json=body)
+        if response.status_code != 429:
+            response.raise_for_status()
+            return response
+        retry_after = response.headers.get("Retry-After")
+        if retry_after:
+            try:
+                wait = max(1.0, min(180.0, float(retry_after)))
+            except ValueError:
+                wait = delay
+        else:
+            wait = delay
+            delay = min(delay * 1.7, 180.0)
+        if attempt == 5:
+            raise RuntimeError(f"CeX rate limited while {context}; last wait {wait:.0f}s")
+        time.sleep(wait)
+    raise RuntimeError(f"CeX rate limited while {context}")
+
+
 def _query(client: httpx.Client, query: str, *, filters: str, page: int = 0,
            hits_per_page: int = 20, facets: list[str] | None = None) -> dict:
     body = {
@@ -182,8 +206,9 @@ def _query(client: httpx.Client, query: str, *, filters: str, page: int = 0,
     }
     if facets:
         body["facets"] = facets
-    response = client.post(ALGOLIA_URL, json=body)
-    response.raise_for_status()
+    response = _post_with_rate_limit_retry(
+        client, ALGOLIA_URL, body, context=f"querying CeX page {page + 1}",
+    )
     payload = response.json()
     if not isinstance(payload.get("hits"), list):
         raise RuntimeError("CeX search returned an unexpected response")
@@ -199,8 +224,10 @@ def _query_many(client: httpx.Client, queries: list[str]) -> list[dict]:
             "attributesToRetrieve": ",".join(ATTRIBUTES),
         }),
     } for query in queries]
-    response = client.post(ALGOLIA_BATCH_URL, json={"requests": requests})
-    response.raise_for_status()
+    response = _post_with_rate_limit_retry(
+        client, ALGOLIA_BATCH_URL, {"requests": requests},
+        context=f"querying {len(queries)} CeX favourites",
+    )
     results = response.json().get("results")
     if not isinstance(results, list) or len(results) != len(queries):
         raise RuntimeError("CeX favourites search returned an unexpected response")
@@ -561,8 +588,8 @@ def _sync_favourites_to_wishlist(progress=None) -> int:
     return added
 
 
-def sync(progress=None) -> None:
-    """Refresh CeX 4K and anime inventory, favourites, and owned standard Blu-ray buyback values."""
+def sync(progress=None, *, include_favourites: bool = True, include_buyback: bool = True) -> None:
+    """Refresh CeX inventory, with optional favourites and standard Blu-ray buyback scans."""
     timeout = httpx.Timeout(30.0, connect=10.0)
     headers = {"user-agent": config.USER_AGENT, "accept": "application/json"}
     with httpx.Client(timeout=timeout, headers=headers) as client:
@@ -571,17 +598,23 @@ def sync(progress=None) -> None:
             if progress:
                 progress(f"Loading CeX {label} catalogue")
             products.extend(_catalogue(client, category, progress))
-        favourite_products = _favourite_products(client, progress)
+        favourite_products = _favourite_products(client, progress) if include_favourites else []
         with get_session() as session:
             baseline = session.exec(select(CexProduct.id)).first() is None
         _record_products(products + favourite_products, baseline=baseline)
-        _sync_favourites_to_wishlist(progress)
-        _match_collection_titles(client, progress)
+        if include_favourites:
+            _sync_favourites_to_wishlist(progress)
+        if include_buyback:
+            _match_collection_titles(client, progress)
     _refresh_title_matches()
     with get_session() as session:
         session.add(CexEvent(
             box_id="__tracker__", product_name="CeX catalogue", event_type="sync",
-            old_value=None, new_value=str(len(products)), created_at=datetime.utcnow(),
+            old_value=None, new_value=json.dumps({
+                "catalogue": len(products),
+                "favourites": include_favourites,
+                "buyback": include_buyback,
+            }, sort_keys=True), created_at=datetime.utcnow(),
         ))
         session.commit()
     from . import cex_alerts

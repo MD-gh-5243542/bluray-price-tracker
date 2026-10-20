@@ -22,7 +22,7 @@ status = {"running": None, "detail": "", "queue": 0, "last": None, "last_error":
 _scheduler = BackgroundScheduler(timezone="Australia/Sydney")
 
 
-def _run(name: str, fn, *args):
+def _run(name: str, fn, *args, **kwargs):
     with _lock:
         status["queue"] = max(0, status["queue"] - 1)
         status["running"] = name
@@ -31,7 +31,7 @@ def _run(name: str, fn, *args):
         tracker.cancel_event.clear()
     outcome = "finished"
     try:
-        fn(*args, progress=lambda msg: status.__setitem__("detail", msg))
+        fn(*args, progress=lambda msg: status.__setitem__("detail", msg), **kwargs)
         status["last_error"] = None
     except tracker.Cancelled:
         outcome = "cancelled"
@@ -50,10 +50,10 @@ def _run(name: str, fn, *args):
             fetch.shutdown_browser()
 
 
-def submit(name: str, fn, *args):
+def submit(name: str, fn, *args, **kwargs):
     with _lock:
         status["queue"] += 1
-        future = _executor.submit(_run, name, fn, *args)
+        future = _executor.submit(_run, name, fn, *args, **kwargs)
         _pending.add(future)
     future.add_done_callback(_pending.discard)
     return future
@@ -79,14 +79,23 @@ def queue_daily_refresh():
     submit("Daily price refresh", tracker.check_all)
 
 
-def queue_cex_refresh():
+def queue_cex_refresh(*, full: bool = True):
+    label = "Refreshing CeX stock" if full else "Refreshing CeX stock (hourly)"
+    return submit(label, cex.sync, include_favourites=full, include_buyback=full)
+
+
+def queue_cex_refresh_scheduled():
     global _cex_future
     with _cex_lock:
         if _cex_future is not None and not _cex_future.done():
             log.info("CeX refresh already running or queued; skipping duplicate")
             return _cex_future
-        _cex_future = submit("Refreshing CeX stock", cex.sync)
+        _cex_future = queue_cex_refresh(full=False)
         return _cex_future
+
+
+def queue_cex_refresh_full_daily():
+    queue_cex_refresh(full=True)
 
 
 def queue_check_title(title_id: int, stores: list[str] | None = None):
@@ -118,9 +127,12 @@ def start_scheduler():
     if config.SCHEDULED_CHECKS:
         _scheduler.add_job(queue_daily_refresh, "cron", hour=5, minute=0,
                            id="daily_refresh", replace_existing=True)
-        _scheduler.add_job(queue_cex_refresh, "cron", minute=5, second=0,
+        _scheduler.add_job(queue_cex_refresh_scheduled, "cron", minute=5, second=0,
                            id="cex_refresh", replace_existing=True,
                            coalesce=True, misfire_grace_time=300)
+        _scheduler.add_job(queue_cex_refresh_full_daily, "cron", hour=5, minute=35,
+                           id="cex_refresh_full_daily", replace_existing=True,
+                           coalesce=True, misfire_grace_time=900)
         _scheduler.start()
 
 
