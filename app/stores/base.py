@@ -21,7 +21,7 @@ class Offer:
 
 
 MATCH_MODES = {
-    "any": "Any 4K release",
+    "any": "Any release",
     "exact": "Exact edition",
     "selected": "Selected editions",
 }

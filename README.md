@@ -1,6 +1,6 @@
 # 💿 Blu-ray Price Tracker
 
-A self-hosted wishlist for 4K Ultra HD Blu-rays. It tracks the cheapest **delivered** price across:
+A self-hosted wishlist for 4K Ultra HD and standard Blu-rays. It tracks the cheapest **delivered** price across:
 
 | Store | How |
 |---|---|
@@ -13,12 +13,12 @@ A self-hosted wishlist for 4K Ultra HD Blu-rays. It tracks the cheapest **delive
 | Rarewaves | Shopify product search + variant data |
 | CeX AU | Public product search feed for 4K and anime stock, branch availability and buyback values; also a main-wishlist retailer |
 
-**[blu-ray.com](https://www.blu-ray.com) is the source of truth** for each title: edition, country, barcode, release date and cover art. Only 4K releases are imported, added, and tracked. Store listings are matched against that release using the barcode where possible, then by fuzzy title matching with 4K, SteelBook and box-set guards.
+**[blu-ray.com](https://www.blu-ray.com) is the source of truth** for each title: edition, country, barcode, release date and cover art. Manual adds can track both 4K and standard Blu-ray releases. Store listings are matched against that release using the barcode where possible, then by fuzzy title matching with format, SteelBook and box-set guards.
 
 ## Features
 - **Import** your Amazon AU wishlist (public/shared link). Non-4K items are skipped; 4K items are matched to a blu-ray.com release, and uncertain matches are flagged for you to confirm.
 - **Collection** page for owned releases, including standard Blu-rays and 4K discs. Import a public blu-ray.com collection link; matching wishlist releases are marked as owned, and regular Blu-rays stay out of price scans.
-- **Add titles** by searching blu-ray.com or pasting a 4K blu-ray.com URL. Pick the exact edition you want (e.g. the JB Hi-Fi SteelBook vs the standard release).
+- **Add titles** by searching blu-ray.com or pasting a blu-ray.com URL. Pick the exact edition and format you want (e.g. 4K SteelBook vs standard Blu-ray release).
 - **UHD tiers**: use "Check BestBluRays UHD tier" on a 4K title's details page, then confirm the matching label/release to save its tier, notes and source link. Lookups are manual, not part of price refreshes. Different editions can have different tiers; the saved rating does not apply to every retailer offer. Failed lookups keep existing ratings, and changing the linked release or main barcode clears the tier.
 - Prices refresh automatically every day at 05:00 Australia/Sydney. CeX runs an **hourly stock refresh at five past every hour** (00:05, 01:05, etc.) plus a **daily full CeX refresh at 05:35** for favourites and standard Blu-ray buyback data. You can also check prices manually: every title, only the titles you tick on the wishlist (“Check selected”), or one title (“Check now”).
 - **CeX** page compares in-stock 4K wishlist matches with retailer prices, tracks 4K and Anime Blu-ray availability changes, includes Blacktown/Rouse Hill availability, and shows CeX cash/voucher offers of at least $3 for owned standard Blu-rays. Recent CeX changes show new listings and availability only, not selling-price or buyback-price changes. The compact page keeps recent changes at the top, with category filters and a combined category/store/price catalogue browser; favourites, wishlist opportunities and trade-in offers are collapsible below. Import up to 1,000 favourites by pasting product links copied from the logged-in CeX page; 4K favourites are added to the main wishlist (pending blu-ray.com release confirmation), while standard Blu-rays stay in the CeX favourites list. The tracker refreshes them from CeX's public catalogue and does not store your CeX login. CeX prices and trade-in offers can change after inspection. Online delivery is charged per item: $4 for items priced at or below $50, and free for an individual item priced over $50.
@@ -27,7 +27,7 @@ A self-hosted wishlist for 4K Ultra HD Blu-rays. It tracks the cheapest **delive
 - Per-store controls: “Wrong match” (exclude and re-search), pick another result, or pin an exact product URL.
 - eBay price checking is currently paused because its bot protection makes scans unreliable. Existing eBay price-history data is retained.
 - Each title has an edition match mode (title page → Tracking options):
-  - **Any 4K release** (default): the cheapest 4K disc of the film from any edition. Stores are searched by title, and by UPC where supported.
+  - **Any release** (default): the cheapest disc of that film in the title's format from any edition. Stores are searched by title, and by UPC where supported.
   - **Exact edition**: only the title's main UPC/EAN counts. Amazon searches by barcode only, and title-matched steelbooks and collector's editions are penalised.
   - **Selected editions**: the main UPC/EAN plus any additional UPC/EANs you list.
   - Changing the mode or the UPCs re-matches the stores; pinned products are kept.

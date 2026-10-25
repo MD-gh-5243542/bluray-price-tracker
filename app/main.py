@@ -69,7 +69,7 @@ def back(url: str) -> RedirectResponse:
 @app.get("/", response_class=HTMLResponse)
 def index(request: Request, sort: str = "name", show: str = "wanted", q: str = "", dir: str = ""):
     with get_session() as s:
-        stmt = select(Title).where(Title.is_4k == True)  # noqa: E712
+        stmt = select(Title)
         if show == "wanted":
             stmt = stmt.where(Title.purchased == False)  # noqa: E712
         elif show == "purchased":
@@ -167,7 +167,7 @@ def check_all():
 @app.post("/check-selected")
 def check_selected(ids: list[int] = Form([])):
     with get_session() as s:
-        valid = [t.id for t in s.exec(select(Title).where(Title.id.in_(ids), Title.is_4k == True))] if ids else []  # noqa: E712
+        valid = [t.id for t in s.exec(select(Title).where(Title.id.in_(ids)))] if ids else []
     if valid:
         jobs.queue_check_titles(valid)
     return back("/")
@@ -336,7 +336,10 @@ def add_page(request: Request, q: str = "", country: str = config.BLURAY_COUNTRY
             return back(f"/add/preview?url={url}")
         try:
             results = bluray.search(q, country)
-            results = [r for r in results if r.is_4k]
+            if fmt == "4k":
+                results = [r for r in results if r.is_4k]
+            elif fmt == "blu-ray":
+                results = [r for r in results if not r.is_4k]
         except Exception as e:
             error = f"blu-ray.com search failed: {e}"
     with get_session() as s:
@@ -357,8 +360,6 @@ def add_preview(request: Request, url: str, title_id: int | None = None):
 @app.post("/add")
 def add_title(url: str = Form(...), target_price: str = Form(""), check_now: str = Form("")):
     rel = bluray.details(url)
-    if not rel.is_4k:
-        raise HTTPException(400, "Only 4K releases can be added to this wishlist")
     with get_session() as s:
         existing = s.exec(select(Title).where(Title.bluray_id == rel.bluray_id)).first()
         if existing:
@@ -450,7 +451,6 @@ def title_page(request: Request, tid: int, q: str = ""):
     if q:
         try:
             search_results = bluray.search(q, "all")
-            search_results = [r for r in search_results if r.is_4k]
         except Exception:
             pass
     return render(request, "title.html", t=t, listings=ls, cands=cands, ship=ship, totals=totals,
@@ -616,8 +616,6 @@ def title_confirm(tid: int, next: str = Form("")):
 def title_release(tid: int, url: str = Form(...)):
     """Re-link a title to a different blu-ray.com release (the source of truth)."""
     rel = bluray.details(url)
-    if not rel.is_4k:
-        raise HTTPException(400, "Only 4K releases can be tracked")
     with get_session() as s:
         t = s.get(Title, tid)
         bluray.apply_release(t, rel)

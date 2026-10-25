@@ -264,7 +264,7 @@ def check_title(title_id: int, stores: list[str] | None = None, progress=None) -
     _raise_if_cancelled()
     with get_session() as s:
         title = s.get(Title, title_id)
-        if not title or not title.is_4k:
+        if not title:
             return
         cancelled = False
         for store in stores or enabled_stores():
@@ -287,7 +287,7 @@ def check_title(title_id: int, stores: list[str] | None = None, progress=None) -
 def check_all(progress=None) -> None:
     with get_session() as s:
         ids = [t.id for t in s.exec(select(Title).where(
-            Title.purchased == False, Title.is_4k == True))]  # noqa: E712
+            Title.purchased == False))]  # noqa: E712
     check_titles(ids, progress=progress)
 
 

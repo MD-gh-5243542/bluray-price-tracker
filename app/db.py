@@ -38,7 +38,7 @@ class Title(SQLModel, table=True):
     country: Optional[str] = None
     is_4k: bool = False
     upc: Optional[str] = Field(default=None, index=True)
-    # any = any 4K release of the film; exact = only `upc`; selected = `upc` + `alt_upcs`.
+    # any = any release of the film in this format; exact = only `upc`; selected = `upc` + `alt_upcs`.
     match_mode: str = "any"
     alt_upcs: Optional[str] = None  # comma-separated extra acceptable UPC/EANs
     release_date: Optional[date] = None

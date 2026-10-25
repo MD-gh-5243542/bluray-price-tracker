@@ -1,4 +1,4 @@
-"""CeX AU 4K listings for the main wishlist matcher."""
+"""CeX AU listings for the main wishlist matcher."""
 import json
 from datetime import datetime, timedelta
 from urllib.parse import parse_qs, urlsplit
@@ -14,16 +14,26 @@ from .base import Offer, Query
 
 STORE = "cex"
 _TIMEOUT = httpx.Timeout(20.0, connect=10.0)
+_BASE_FILTER = "boxVisibilityOnWeb=1 AND boxSaleAllowed=1 AND sellPrice > 0"
+
+
+def _is_supported_category(category: str, wanted_4k: bool | None) -> bool:
+    if wanted_4k is None:
+        return category.startswith("Blu-Ray")
+    if wanted_4k:
+        return category == "Blu-Ray 4K"
+    return category.startswith("Blu-Ray") and "4K" not in category
 
 
 def _offer(q: Query | None, hit: dict) -> Offer | None:
     product = catalogue._normalise_hit(hit)
-    if not product["box_id"] or product["category"] != "Blu-Ray 4K":
+    wanted_4k = q.is_4k if q is not None else None
+    if not product["box_id"] or not _is_supported_category(product["category"], wanted_4k):
         return None
     barcode_match = q is not None and any(
         catalogue._same_barcode(product["box_id"], upc) for upc in q.upcs
     )
-    candidate = catalogue._match_candidate(product, True)
+    candidate = catalogue._match_candidate(product, q.is_4k if q is not None else ("4K" in product["category"]))
     score = (q.score_barcode(candidate) if barcode_match
              else q.score(candidate, loose=True) if q else 0.0)
     if barcode_match and score >= 50:
@@ -61,11 +71,12 @@ def _offer(q: Query | None, hit: dict) -> Offer | None:
 
 def search(q: Query) -> list[Offer]:
     hits: dict[str, dict] = {}
+    wanted_filter = catalogue.FILTER_4K if q.is_4k else _BASE_FILTER
     headers = {"user-agent": config.USER_AGENT, "accept": "application/json"}
     with httpx.Client(timeout=_TIMEOUT, headers=headers) as client:
         for upc in q.upcs:
             payload = catalogue._query(
-                client, upc, filters=catalogue.FILTER_4K, hits_per_page=10,
+                client, upc, filters=wanted_filter, hits_per_page=10,
             )
             for hit in payload["hits"]:
                 box_id = str(hit.get("boxId") or hit.get("objectID") or "")
@@ -75,7 +86,7 @@ def search(q: Query) -> list[Offer]:
         if q.title_search_too:
             text = q.search_terms or search_query(q.name)
             payload = catalogue._query(
-                client, text, filters=catalogue.FILTER_4K, hits_per_page=20,
+                client, text, filters=wanted_filter, hits_per_page=20,
             )
             for hit in payload["hits"]:
                 box_id = str(hit.get("boxId") or hit.get("objectID") or "")
@@ -97,14 +108,11 @@ def refresh(url: str) -> Offer | None:
     headers = {"user-agent": config.USER_AGENT, "accept": "application/json"}
     with httpx.Client(timeout=_TIMEOUT, headers=headers) as client:
         payload = catalogue._query(
-            client, box_id, filters=catalogue.FILTER_4K, hits_per_page=10,
+            client, box_id, filters=_BASE_FILTER, hits_per_page=10,
         )
     hit = next((item for item in payload["hits"]
                 if str(item.get("boxId") or item.get("objectID") or "") == box_id), None)
     if not hit:
-        return None
-    product = catalogue._normalise_hit(hit)
-    if product["category"] != "Blu-Ray 4K":
         return None
     return _offer(None, hit)
 

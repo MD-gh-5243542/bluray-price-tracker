@@ -2,14 +2,16 @@
 {% block title %}Add title{% endblock %}
 {% block content %}
 <h1>Add a title</h1>
-<p class="muted">Search blu-ray.com for 4K Ultra HD releases — it's the source of truth for edition, barcode and release date. You can also paste a 4K blu-ray.com link.</p>
+<p class="muted">Search blu-ray.com for 4K Ultra HD or standard Blu-ray releases — it's the source of truth for edition, barcode and release date. You can also paste a blu-ray.com release link.</p>
 <form method="get" class="searchbar">
   <input type="search" name="q" value="{{ q }}" placeholder="e.g. Heat, or https://www.blu-ray.com/movies/…" autofocus required>
   <select name="country">
     {% for code, label in countries.items() %}<option value="{{ code }}" {% if code==country %}selected{% endif %}>{{ label }}</option>{% endfor %}
   </select>
   <select name="fmt">
-    <option value="4k" selected>4K only</option>
+    <option value="4k" {% if fmt=='4k' %}selected{% endif %}>4K only</option>
+    <option value="blu-ray" {% if fmt=='blu-ray' %}selected{% endif %}>Blu-ray only</option>
+    <option value="all" {% if fmt=='all' %}selected{% endif %}>All formats</option>
   </select>
   <button class="btn primary">Search</button>
 </form>

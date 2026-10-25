@@ -5,7 +5,7 @@
   {% if t.cover_url %}<img class="cover-lg" src="{{ t.cover_url }}" alt="">{% endif %}
   <div class="grow">
     <h1>{{ t.name }} <span class="badge {{ 'uhd' if t.is_4k else 'bd' }}">{{ '4K' if t.is_4k else 'Blu-ray' }}</span>
-      <span class="badge" title="Which releases count for price tracking">{{ MATCH_MODES.get(t.match_mode or 'any', 'Any 4K release') }}</span>
+      <span class="badge" title="Which releases count for price tracking">{{ MATCH_MODES.get(t.match_mode or 'any', 'Any release') }}</span>
       {% if t.purchased %}<span class="badge ok">purchased</span>{% endif %}</h1>
 
     {% if t.needs_review %}
@@ -18,7 +18,7 @@
       {% else %}
         <strong>Choose the matching blu-ray.com release.</strong>
         {% if t.source == 'cex' and t.source_title %}Imported from your CeX favourite: “{{ t.source_title }}”.{% endif %}
-        Search below and select the right 4K release before confirming.
+        Search below and select the right release before confirming.
       {% endif %}
     </div>
     {% endif %}
@@ -161,7 +161,7 @@
           <option value="{{ key }}" {% if (t.match_mode or 'any') == key %}selected{% endif %}>{{ label }}</option>
           {% endfor %}
         </select>
-        <span class="muted small"><strong>Any 4K release</strong>: cheapest 4K disc of this film, any edition; the UPCs below are also searched.
+        <span class="muted small"><strong>Any release</strong>: cheapest {{ "4K" if t.is_4k else "Blu-ray" }} disc of this film, any edition; the UPCs below are also searched.
           <strong>Exact edition</strong>: only the main UPC/EAN.
           <strong>Selected editions</strong>: the main UPC/EAN plus the additional ones.
           Changing this re-matches the stores (pinned products are kept).</span>
