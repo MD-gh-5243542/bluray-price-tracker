@@ -55,6 +55,10 @@ def looks_like_dvd_only(text: str) -> bool:
     return bool(_DVD_ONLY.search(text or "")) and not _BLURAY.search(text or "")
 
 
+def mentions_dvd(text: str) -> bool:
+    return bool(_DVD_ONLY.search(text or ""))
+
+
 def core_title(text: str) -> str:
     """Reduce a product title to the bare film name for comparison."""
     s = _ascii(re.sub(r"[\u2022\u00b7\u2027\u2219]", "-", text or "")).lower()
@@ -110,7 +114,7 @@ def score(wanted_name: str, wanted_4k: bool, wanted_edition: str, candidate: str
         return 0.0
     if wanted_4k != is_4k(candidate):
         return 0.0
-    if looks_like_dvd_only(candidate):
+    if mentions_dvd(candidate):
         return 0.0
     a, b = core_title(wanted_name), core_title(candidate)
     if not a or not b:
@@ -133,6 +137,8 @@ def score(wanted_name: str, wanted_4k: bool, wanted_edition: str, candidate: str
 def score_barcode(wanted_name: str, wanted_4k: bool, wanted_edition: str, candidate: str,
                   loose: bool = False, **kwargs) -> float:
     """Score title identity for a barcode hit; the barcode establishes the format."""
+    if mentions_dvd(candidate):
+        return 0.0
     title = re.sub(
         r"\b(?:4k|uhd|2160p|dvd|blu[\s-]?ray|ultra[\s-]?hd)\b", " ", candidate, flags=re.I)
     title += " 4K Ultra HD" if wanted_4k else " Blu-ray"
