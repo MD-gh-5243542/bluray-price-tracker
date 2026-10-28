@@ -382,7 +382,7 @@ def _history_svg(points: list[PricePoint], width=720, height=220) -> str:
     if not points:
         return ""
     colours = {"amazon": "#ff9900", "ezydvd": "#e4002b", "ebay": "#0064d2",
-               "jbhifi": "#e31837", "umbrella": "#6a9f58", "dvdhub": "#b58900",
+               "jbhifi": "#e31837", "umbrella": "#6a9f58", "vinted": "#09b1ba",
                "sanity": "#00a4a7", "rarewaves": "#d65a31", "cex": "#18a1a1"}
     xs = [p.checked_at.timestamp() for p in points]
     ys = [p.total for p in points]

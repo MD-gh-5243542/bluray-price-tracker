@@ -50,7 +50,7 @@ SHIPPING = {
     "ezydvd": float(os.getenv("SHIPPING_EZYDVD", "6.95")),
     "jbhifi": float(os.getenv("SHIPPING_JBHIFI", "6.95")),
     "umbrella": float(os.getenv("SHIPPING_UMBRELLA", "9.95")),
-    "dvdhub": float(os.getenv("SHIPPING_DVDHUB", "7.95")),
+    "vinted": float(os.getenv("SHIPPING_VINTED", "0")),
     "sanity": float(os.getenv("SHIPPING_SANITY", "3.50")),
     "rarewaves": float(os.getenv("SHIPPING_RAREWAVES", "9.95")),
 }
@@ -60,7 +60,7 @@ FREE_SHIPPING_OVER = {
     "ezydvd": float(os.getenv("FREE_SHIPPING_OVER_EZYDVD", "80")),
     "jbhifi": float(os.getenv("FREE_SHIPPING_OVER_JBHIFI", "99")),
     "umbrella": float(os.getenv("FREE_SHIPPING_OVER_UMBRELLA", "120")),
-    "dvdhub": float(os.getenv("FREE_SHIPPING_OVER_DVDHUB", "0")),
+    "vinted": float(os.getenv("FREE_SHIPPING_OVER_VINTED", "0")),
     "sanity": float(os.getenv("FREE_SHIPPING_OVER_SANITY", "120")),
     "rarewaves": float(os.getenv("FREE_SHIPPING_OVER_RAREWAVES", "0")),
 }

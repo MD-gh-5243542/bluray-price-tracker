@@ -8,7 +8,7 @@ A self-hosted wishlist for 4K Ultra HD and standard Blu-rays. It tracks the chea
 | EzyDVD | site search |
 | JB Hi-Fi AU | site search + product JSON-LD |
 | Umbrella Entertainment | Shopify product search + variant data |
-| DVD Hub | Shopify product search + variant data |
+| Vinted AU | marketplace catalog search + item page refresh |
 | Sanity | Unbxd product search + JSON-LD product data |
 | Rarewaves | Shopify product search + variant data |
 | CeX AU | Public product search feed for 4K and anime stock, branch availability and buyback values; also a main-wishlist retailer |
@@ -116,7 +116,7 @@ before recording success, can cause a duplicate on retry.
 | `SHIPPING_AMAZON` | `0` | Prime / free over $59 |
 | `SHIPPING_JBHIFI` / `FREE_SHIPPING_OVER_JBHIFI` | `6.95` / `99` | configurable delivery estimate |
 | `SHIPPING_UMBRELLA` / `FREE_SHIPPING_OVER_UMBRELLA` | `9.95` / `120` | `$9.95` is an estimate; postage varies by weight/location; free AU shipping over $120 |
-| `SHIPPING_DVDHUB` / `FREE_SHIPPING_OVER_DVDHUB` | `7.95` / `0` | standard tracked postage |
+| `SHIPPING_VINTED` / `FREE_SHIPPING_OVER_VINTED` | `0` / `0` | default add-on for Vinted item prices; set this if you want to include a flat delivery estimate |
 | `SHIPPING_SANITY` / `SHIPPING_SANITY_MULTI` / `FREE_SHIPPING_OVER_SANITY` | `3.50` / `9.95` / `120` | $3.50 single-item, $9.95 multiple-item postage; free over $120. Per-title estimates use the single-item rate. |
 | `SHIPPING_RAREWAVES` / `FREE_SHIPPING_OVER_RAREWAVES` | `9.95` / `0` | estimate; actual international postage varies |
 | `BLURAY_COUNTRY` | `AU` | default country when searching blu-ray.com |

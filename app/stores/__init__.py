@@ -1,4 +1,4 @@
-from . import amazon, cex, dvdhub, ezydvd, jbhifi, rarewaves, sanity, umbrella
+from . import amazon, cex, ezydvd, jbhifi, rarewaves, sanity, umbrella, vinted
 
 MODULES = {
     "amazon": amazon,
@@ -6,7 +6,7 @@ MODULES = {
     "ezydvd": ezydvd,
     "jbhifi": jbhifi,
     "umbrella": umbrella,
-    "dvdhub": dvdhub,
+    "vinted": vinted,
     "sanity": sanity,
     "rarewaves": rarewaves,
 }

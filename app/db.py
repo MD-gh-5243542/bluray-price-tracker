@@ -7,7 +7,7 @@ from sqlmodel import Field, Session, SQLModel, create_engine, select
 
 from .config import CEX_DELIVERY_PER_ITEM, CEX_FREE_DELIVERY_ITEM_OVER, DB_PATH
 
-STORES = ["amazon", "ezydvd", "jbhifi", "umbrella", "dvdhub", "sanity", "rarewaves", "cex"]
+STORES = ["amazon", "ezydvd", "jbhifi", "umbrella", "vinted", "sanity", "rarewaves", "cex"]
 class _StoreNames(dict):
     # Historical rows may reference retired stores (e.g. Zavvi).
     def __missing__(self, key):
@@ -20,7 +20,7 @@ STORE_NAMES = _StoreNames({
     "ebay": "eBay AU",
     "jbhifi": "JB Hi-Fi AU",
     "umbrella": "Umbrella Entertainment",
-    "dvdhub": "DVD Hub",
+    "vinted": "Vinted",
     "sanity": "Sanity",
     "rarewaves": "Rarewaves",
     "cex": "CeX AU",
@@ -295,6 +295,22 @@ def init_db() -> None:
                     enabled.append("cex")
                 setting.value = ",".join(store for store in enabled if store in STORES)
             session.add(Setting(key=add_cex_key, value="1"))
+            session.commit()
+
+        vinted_migration_key = "enabled_stores_vinted_remove_dvdhub_v1"
+        if session.get(Setting, vinted_migration_key) is None:
+            setting = session.get(Setting, "enabled_stores")
+            if setting:
+                enabled = [store for store in setting.value.split(",") if store != "dvdhub"]
+                if "vinted" not in enabled:
+                    enabled.append("vinted")
+                setting.value = ",".join(store for store in enabled if store in STORES)
+            for title in session.exec(select(Title).where(Title.best_store == "dvdhub")).all():
+                title.best_price = None
+                title.best_store = None
+                title.best_url = None
+                session.add(title)
+            session.add(Setting(key=vinted_migration_key, value="1"))
             session.commit()
 
         cex_shipping_key = "cex_per_item_shipping_v1"

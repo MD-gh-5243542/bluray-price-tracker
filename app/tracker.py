@@ -16,7 +16,7 @@ log = logging.getLogger(__name__)
 
 # Set by jobs.cancel(); checks stop before the next store.
 cancel_event = threading.Event()
-_SHOPIFY_STORES = {"dvdhub", "umbrella", "rarewaves"}
+_SHOPIFY_STORES = {"umbrella", "rarewaves"}
 
 
 class Cancelled(Exception):
@@ -157,7 +157,7 @@ def check_store(session, title: Title, store: str) -> Listing:
                         listing.candidates_json = _cands_json([chosen] + cands[:5])
                 else:
                     listing.pinned = False  # sold or ended; fall back to the automatic pick
-            if offer and store in ("amazon", "umbrella", "dvdhub", "sanity", "rarewaves"):
+            if offer and store in ("amazon", "umbrella", "sanity", "rarewaves"):
                 source_url = offer.url
                 matched_by_barcode = offer.by_barcode
                 refreshed = mod.refresh(source_url)
