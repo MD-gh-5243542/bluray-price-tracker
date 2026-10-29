@@ -11,6 +11,7 @@ from .base import Offer, Query
 
 BASE = "https://www.vinted.com.au"
 STORE = "vinted"
+_BLURAY_TOKEN = re.compile(r"\b(?:blu[\s-]?ray|uhd\s*blu[\s-]?ray)\b", re.I)
 
 
 def _search_url(text: str) -> str:
@@ -39,6 +40,10 @@ def _is_in_stock(text: str) -> bool:
     return "sold" not in lowered and "reserved" not in lowered and "unavailable" not in lowered
 
 
+def _looks_like_bluray(*parts: str) -> bool:
+    return _BLURAY_TOKEN.search(" ".join(parts)) is not None
+
+
 def _parse_list(html: str, q: Query) -> list[Offer]:
     soup = BeautifulSoup(html, "lxml")
     out: list[Offer] = []
@@ -54,9 +59,11 @@ def _parse_list(html: str, q: Query) -> list[Offer]:
         title, price = _title_and_price(anchor)
         if not title:
             continue
+        text = anchor.get_text(" ", strip=True)
+        if not _looks_like_bluray(title, text):
+            continue
         if q.is_4k and not is_4k(title):
             continue
-        text = anchor.get_text(" ", strip=True)
         image = None
         if img := anchor.find("img"):
             image = img.get("src") or img.get("data-src")

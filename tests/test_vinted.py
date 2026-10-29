@@ -22,6 +22,9 @@ class VintedStoreTests(unittest.TestCase):
     @patch("app.stores.vinted.fetch.browser_get")
     def test_search_parses_catalog_cards_and_filters_to_4k(self, browser_get):
         browser_get.return_value = """
+        <a href="/items/000-photography-book" title="A Complete Guide to 4K, Condition: Good, 11.00 A$, 13.00 A$">
+          <img src="https://img.example/book.webp" alt="A Complete Guide to 4K" />
+        </a>
         <a href="/items/111-plain-disc" title="Movie Standard Blu-ray, Condition: Very good, 6.50 A$, 8.20 A$">
           <img src="https://img.example/plain.webp" alt="Movie Standard Blu-ray" />
         </a>
