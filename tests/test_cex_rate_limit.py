@@ -34,6 +34,13 @@ class CexRateLimitTests(unittest.TestCase):
         self.assertEqual(client.post.call_count, 6)
         self.assertEqual(sleep.call_count, 5)
 
+    def test_category_key_includes_standard_blurays(self):
+        self.assertEqual(cex._category_key("Blu-Ray 4K"), "4k")
+        self.assertEqual(cex._category_key("Blu-Ray Anime"), "anime")
+        self.assertEqual(cex._category_key("Blu-Ray"), "standard")
+        self.assertEqual(cex._category_key("Blu-Ray Kids"), "standard")
+        self.assertIsNone(cex._category_key("DVD"))
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -30,11 +30,19 @@ FILTER_4K = (
     'boxVisibilityOnWeb=1 AND boxSaleAllowed=1 AND sellPrice > 0 '
     'AND categoryFriendlyName:"Blu-Ray 4K"'
 )
+FILTER_STANDARD = (
+    'boxVisibilityOnWeb=1 AND boxSaleAllowed=1 AND sellPrice > 0 '
+    'AND categoryFriendlyName:"Blu-Ray"'
+)
 FILTER_ANIME = (
     'boxVisibilityOnWeb=1 AND boxSaleAllowed=1 AND sellPrice > 0 '
     'AND categoryFriendlyName:"Blu-Ray Anime"'
 )
-CATALOGUE_CATEGORIES = {"4k": "4K Blu-rays", "anime": "Anime Blu-rays"}
+CATALOGUE_CATEGORIES = {
+    "4k": "4K Blu-rays",
+    "standard": "Standard Blu-rays",
+    "anime": "Anime Blu-rays",
+}
 BRANCHES = ("Blacktown", "Rouse Hill")
 STOCK_LOCATIONS = {"": "All locations", "either": "Either preferred store",
                    **{branch: branch for branch in BRANCHES}}
@@ -109,6 +117,16 @@ def _box_url(box_id: str, category: str) -> str:
     return "https://au.webuy.com/product-detail?" + urlencode({
         "id": box_id, "categoryName": category_slug, "superCatName": "FILM-TV",
     })
+
+
+def _category_key(category: str) -> str | None:
+    if category == "Blu-Ray 4K":
+        return "4k"
+    if category == "Blu-Ray Anime":
+        return "anime"
+    if category.startswith("Blu-Ray"):
+        return "standard"
+    return None
 
 
 def parse_favourite_links(text: str) -> dict[str, str]:
@@ -238,7 +256,11 @@ def _query_many(client: httpx.Client, queries: list[str]) -> list[dict]:
 
 
 def _catalogue(client: httpx.Client, category: str, progress=None) -> list[dict]:
-    catalogue_filter = {"4k": FILTER_4K, "anime": FILTER_ANIME}[category]
+    catalogue_filter = {
+        "4k": FILTER_4K,
+        "standard": FILTER_STANDARD,
+        "anime": FILTER_ANIME,
+    }[category]
     first = _query(client, "", filters=catalogue_filter, hits_per_page=1000, facets=["sellPrice"])
     total = first.get("nbHits", 0)
     hits = first["hits"]
@@ -659,7 +681,7 @@ def page_data(location: str = "", sort: str = "name", page: int = 1,
     catalogue = [
         {"product": product, "branches": json.loads(product.branch_stock_json or "{}")}
         for product in products.values()
-        if product.category == ("Blu-Ray 4K" if category == "4k" else "Blu-Ray Anime")
+        if _category_key(product.category) == category
     ]
     catalogue_count = len(catalogue)
     catalogue = [row for row in catalogue if available(row["branches"])]
@@ -754,11 +776,7 @@ def page_data(location: str = "", sort: str = "name", page: int = 1,
     event_rows = []
     for event in recent:
         product = all_products.get(event.box_id)
-        event_category = (
-            "4k" if product and product.category == "Blu-Ray 4K"
-            else "anime" if product and product.category == "Blu-Ray Anime"
-            else None
-        )
+        event_category = _category_key(product.category) if product else None
         if changes != "all" and event_category != changes:
             continue
         if event.event_type == "new":
@@ -813,7 +831,8 @@ def page_data(location: str = "", sort: str = "name", page: int = 1,
         "stale": not sync_event or sync_event.created_at < datetime.utcnow() - timedelta(hours=36),
         "catalogue_count": catalogue_count,
         "catalogue_counts": {
-            "4k": len([p for p in products.values() if p.category == "Blu-Ray 4K"]),
-            "anime": len([p for p in products.values() if p.category == "Blu-Ray Anime"]),
+            "4k": len([p for p in products.values() if _category_key(p.category) == "4k"]),
+            "standard": len([p for p in products.values() if _category_key(p.category) == "standard"]),
+            "anime": len([p for p in products.values() if _category_key(p.category) == "anime"]),
         },
     }
